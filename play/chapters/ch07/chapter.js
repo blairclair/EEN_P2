@@ -250,17 +250,17 @@
           g.fillStyle = grad; g.fillRect(0, 0, W, ctx.H);
           // spotlight on the mat
           g.save(); g.globalAlpha = 0.18; g.fillStyle = '#ffe9c0'; g.beginPath(); g.moveTo(170, 23); g.lineTo(214, 23); g.lineTo(262, 190); g.lineTo(122, 190); g.fill(); g.restore();
-          R.rect(112, 178, 160, 10, '#18181e'); R.rect(112, 178, 160, 2, '#2a2a34');
+          R.rect(132, 126, 120, 8, '#18181e'); R.rect(132, 126, 120, 2, '#2a2a34');
           // Luna, arms out, palms up. Arms sag as stamina falls.
           var sag = (100 - stamina) / 100 * 16, shake = stamina < 35 ? Math.sin(t * 40) * (35 - stamina) / 20 : 0;
           var spec = 'luna';
-          R.img(ctx.sprite(spec, 'down', 0), 192 - 32, 100, 4);
-          var ay = 128 + sag + shake;
-          R.rect(130, ay, 32, 6, '#d8b8a0'); R.rect(222, ay, 32, 6, '#d8b8a0');
-          R.rect(126, ay - 1, 6, 8, '#e8cbb4'); R.rect(252, ay - 1, 6, 8, '#e8cbb4');
+          R.img(ctx.sprite(spec, 'down', 0), 192 - 24, 56, 3);
+          var ay = 103 + sag * 0.6 + shake;
+          R.rect(140, ay, 30, 5, '#d8b8a0'); R.rect(214, ay, 30, 5, '#d8b8a0');
+          R.rect(136, ay - 1, 5, 7, '#e8cbb4'); R.rect(243, ay - 1, 5, 7, '#e8cbb4');
           for (var b = 0; b < bags; b++) {
             var side = b % 2 === 0 ? 0 : 1, row = Math.floor(b / 2);
-            var bx = side ? 226 : 134, by = ay - 9 - row * 8;
+            var bx = side ? 220 : 142, by = ay - 8 - row * 8;
             if (b === bags - 1 && ctx.t - dropT < 0.25) by -= (0.25 - (ctx.t - dropT)) * 160;
             R.rect(bx, by, 22, 8, '#6a5434'); R.rect(bx + 2, by + 1, 18, 3, '#8a7048'); R.rect(bx + 10, by, 2, 8, '#4a3a22');
           }
