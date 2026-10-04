@@ -179,6 +179,15 @@
           api.add('ch10_examined', 1);
         } },
       smoke_detector: { examine: [{ think: 'The smoke detector. Eye. Its red dot is solid tonight. Recording, not watching.' }, { sound: 'camera' }] },
+      // every other fixture counts as "looking around" too, so no examine is a dead end
+      window_r: { examine: [{ think: 'No latch, no hinge. A window that is only a picture of a window.' }, { set: { ch10_examined: '+1' } }] },
+      nightstand: { examine: [{ think: 'A little lamp and an empty drawer. Nothing of mine fits in it.' }, { set: { ch10_examined: '+1' } }] },
+      wardrobe: { examine: [{ think: 'Grey DPE sweatsuits, all my size. And a nightgown I didn\'t choose, which is what I\'m wearing.' }, { set: { ch10_examined: '+1' } }] },
+      booklet: { examine: async function (api) {
+          if (api.has('ch10_woke')) { await api.think('The DPE pen and the penguin booklet. Plenty of margin to write in.'); return; }
+          await api.think('The penguin booklet, and a pen stamped DPE.');
+          api.add('ch10_examined', 1);
+        } },
       // The door stays shut until Ginerva knocks, and again after the red room.
       to_bedroom_hall: { locked: '!ch10_summoned || ch10_woke', lockedText: [{ think: 'Locked. It\'s past eleven. The doors lock at eleven.' }] }
     },

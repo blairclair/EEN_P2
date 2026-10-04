@@ -55,52 +55,11 @@
   function spawns(id) { return (G.shared && G.shared.data && G.shared.data.spawns && G.shared.data.spawns[id]) || {}; }
   function mk(id, name, fb) { var m = marks(id)[name]; return m ? [m[0], m[1]] : fb; }
 
-  /* walkability test on a map def (default legend + its own legend) */
-  function walker(def) {
-    var leg = Object.assign({}, G.Map.LEGEND, def.legend || {});
-    return function (x, y) {
-      var row = def.tiles[y]; if (!row || x < 0) return false;
-      var ch = row.charAt(x) || ' ', e = leg[ch];
-      if (e === undefined) return false;
-      var name = typeof e === 'string' ? e : (e.tile || 'floor');
-      var td = G.lookup('tiles', name, 'ch15');
-      return !!td && !td.solid;
-    };
-  }
-  /** Snap [x,y] (given for a local W x H layout) into a shared map: scale, then nearest walkable free tile. */
-  function fitter(def, srcW, srcH) {
-    var ok = walker(def), used = {};
-    var w = 0; def.tiles.forEach(function (r) { w = Math.max(w, r.length); });
-    var h = def.tiles.length;
-    return function (p) {
-      var x = Math.round(p[0] * (w - 1) / (srcW - 1)), y = Math.round(p[1] * (h - 1) / (srcH - 1));
-      for (var r = 0; r < 12; r++) {
-        for (var dy = -r; dy <= r; dy++) for (var dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          var k = (x + dx) + ',' + (y + dy);
-          if (!used[k] && ok(x + dx, y + dy)) { used[k] = 1; return [x + dx, y + dy]; }
-        }
-      }
-      return [x, y];
-    };
-  }
-
   /* ---------------------------------------------------------------------
    * CUSTOM TILES & PROPS
    * ------------------------------------------------------------------- */
   function px(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
   var tiles = {
-    dollshelf: { wall: true, solid: true, draw: function (g, x, y, info) {
-      px(g, x, y, 16, 16, '#2a1a14'); px(g, x, y + 7, 16, 1, '#4a2e20'); px(g, x, y + 15, 16, 1, '#4a2e20');
-      for (var i = 0; i < 3; i++) { var hx = x + 1 + i * 5, c = ['#e8d8c8', '#f0e0d0', '#d8c8b8'][(info.tx + i) % 3];
-        px(g, hx, y + 2, 4, 4, c); px(g, hx + 1, y + 3, 1, 1, '#111'); px(g, hx + 3, y + 3, 1, 1, '#111');
-        px(g, hx + 1, y + 4, 1, 3, '#8a1018'); px(g, hx, y + 9, 4, 5, ['#6a2a4a', '#2a4a6a', '#6a6a2a'][(info.ty + i) % 3]); px(g, hx + 1, y + 10, 2, 2, c); }
-    } },
-    leaderwall: { wall: true, solid: true, draw: function (g, x, y) {
-      px(g, x, y, 16, 16, '#3a3428'); px(g, x + 2, y + 2, 12, 11, '#c9a24a'); px(g, x + 3, y + 3, 10, 9, '#6a7a8a');
-      px(g, x + 6, y + 4, 4, 4, '#d8a878'); px(g, x + 6, y + 4, 4, 1, '#3a2a1a'); px(g, x + 5, y + 8, 6, 4, '#2a2a3a'); px(g, x + 7, y + 6, 2, 1, '#111');
-    } },
-    whitewall: { wall: true, solid: true, color: '#e8e6e0', color2: '#c8c6c0', pattern: 'plain' },
     treeline: { solid: true, wall: true, draw: function (g, x, y, info) {
       px(g, x, y, 16, 16, '#0a140c'); px(g, x + 2 + (info.tx % 3), y + 1, 9, 9, '#14281a'); px(g, x + 4, y + 3, 6, 5, '#1c3a24'); px(g, x + 7, y + 10, 2, 6, '#1a120c');
     } },
@@ -108,13 +67,6 @@
     nightroad: { color: '#14161c', color2: '#1c1e24', pattern: 'noise' }
   };
   var props = {
-    samantha: function (g, x, y, t) { // the giant doll: palm-leaf red hair, icy blue eyes, beach-ball face, gavel
-      px(g, x - 2, y - 10, 20, 10, '#b01828'); px(g, x - 4, y - 6, 4, 8, '#b01828'); px(g, x + 16, y - 6, 4, 8, '#b01828');
-      px(g, x, y - 6, 16, 14, '#f4e4d4'); px(g, x + 3, y - 3, 3, 3, '#5ac8f0'); px(g, x + 10, y - 3, 3, 3, '#5ac8f0');
-      if (Math.sin(t * 1.3) > 0.97) { px(g, x + 3, y - 3, 3, 3, '#f4e4d4'); px(g, x + 10, y - 3, 3, 3, '#f4e4d4'); }
-      px(g, x + 5, y + 3, 6, 2, '#7a2a8a'); px(g, x + 2, y + 8, 12, 8, '#5a1a6a'); px(g, x + 14, y + 6, 4, 2, '#6a3a1a'); px(g, x + 16, y + 3, 3, 4, '#4a2a10');
-    },
-    throne: function (g, x, y) { px(g, x + 2, y - 6, 12, 20, '#c9a24a'); px(g, x + 4, y - 4, 8, 10, '#7a1020'); px(g, x + 3, y - 7, 2, 2, '#e83a5a'); px(g, x + 11, y - 7, 2, 2, '#3ac8e8'); px(g, x + 3, y + 8, 10, 4, '#7a1020'); },
     xchair: function (g, x, y) { // execution chair with straps
       px(g, x + 3, y - 4, 10, 10, '#2a2a30'); px(g, x + 2, y + 6, 12, 4, '#2a2a30'); px(g, x + 3, y + 10, 2, 5, '#1a1a1e'); px(g, x + 11, y + 10, 2, 5, '#1a1a1e');
       px(g, x + 2, y + 2, 12, 1, '#7a5a3a'); px(g, x + 2, y + 7, 12, 1, '#7a5a3a'); px(g, x + 14, y - 2, 1, 10, '#c8d0d8'); px(g, x + 13, y - 3, 3, 2, '#e8eef0');
@@ -142,71 +94,63 @@
   /* ---------------------------------------------------------------------
    * MAPS
    * ------------------------------------------------------------------- */
-  /* --- Doll Room (local layout 16x12; shared if loc_upstairs lands) --- */
-  var DOLL_TILES = [
-    'YYYYYYYYYYYWWYYY',
-    'Y,,,,,,,,,,,,,,Y',
-    'Y,,,,,,,,,,,,,,Y',
-    'Y,,,,,c,,,c,,,,Y',
-    'Y,,,,,,,,,,,,,,Y',
-    'Y,,,,c,,RR,,c,,Y',
-    'Y,,,,,,,RR,,,,,Y',
-    'Y,,,,,c,,,c,,,,Y',
-    'Y,,,,,,,,,,,,,,Y',
-    'Y,,,,,,,,,,,,,,Y',
-    'Y,,,,,,,,,,,,,,D',
-    'YYYYYYYYYYYYYYYY'
-  ];
-  var DP = { arrive: [14, 10], judge: [9, 2], throne: [10, 1], samantha: [7, 1], tbk1: [5, 1], tbk2: [12, 2], trader: [14, 3], ginerva: [13, 7],
-    isaiah: [5, 4], annette: [11, 4], luna: [6, 6], tbdoor: [14, 9], window: [11, 1], shelf: [1, 5], lunachair: [6, 5] };
+  /* --- Doll Room: the shared map (play/shared/loc_upstairs.js), staged with its marks.
+   * Shared fixtures used as-is: samantha, tb_statue_left/right, window_rain, chair_1..8, trader_chair.
+   * The fallback (shared room missing) is a minimal box that reuses the same entity ids. --- */
+  var DM = {
+    arrive: (spawns(H.doll).from_service_stair) || [3, 12], throne: mk(H.doll, 'judge_throne', [11, 1]),
+    luna: mk(H.doll, 'chair_1', [7, 3]), annette: mk(H.doll, 'chair_3', [12, 5]), isaiah: mk(H.doll, 'chair_8', [4, 5]),
+    trader: mk(H.doll, 'trader_stand', [8, 10]), center: mk(H.doll, 'center', [8, 6])
+  };
+  DM.judge = [DM.throne[0], DM.throne[1] + 1];
+  DM.ginerva = [DM.trader[0] + 4, DM.trader[1]];
+  DM.tbdoor = [DM.arrive[0] + 1, DM.arrive[1] - 1];
+  DM.lunaStand = [DM.luna[0], DM.luna[1] + 1];
   function dollRoom() {
-    var shared = G.shared && G.shared.has(H.doll);
-    var base = shared ? G.shared.map(H.doll, {}) : { name: 'The Doll Room', tiles: DOLL_TILES, legend: { Y: 'dollshelf' } };
-    var P = {};
-    if (shared) { var f = fitter(base, 16, 12); Object.keys(DP).forEach(function (k) { P[k] = f(DP[k]); }); } else P = DP;
-    var npcs = [
-      { id: 'c15_judge', spec: 'judge_robe', at: P.judge, facing: 'down', talk: [['judge_robe', 'Sit, Miss Luna. Your last walk is coming soon enough.', 'smug']] },
-      { id: 'c15_trader', spec: 'trader_hurt', at: P.trader, facing: 'left', talk: async function (api) {
-        await api.narrate('He doesn\'t look up. Deep purple bruises ring his eyes, and a single long cut runs across his cheek, so smooth it could only have been done with a blade.');
-        await api.think('Whatever spark he had at the lie detector, his father has stamped it out.');
-      }, again: [{ think: 'He stares at the floor like it owes him money.' }] },
-      { id: 'c15_ginerva', spec: 'ginerva', at: P.ginerva, facing: 'left', talk: async function (api) {
-        if (api.get('f_promised_ginerva')) {
-          await api.say('ginerva', 'You promised.', { mood: 'sad' });
-          await api.think('She means Trader. Repent to his father. As if his father would listen.');
-          var c = await api.choice(['"I haven\'t forgotten."', '"Look at him, Ginerva. Look what Silas did."']);
-          if (c === 0) await api.say('ginerva', 'See that you don\'t. There isn\'t much time left. For any of us.', { mood: 'tired' });
-          else await api.say('ginerva', 'I see it every day, Miss Bartley. I have for twenty-four years.', { mood: 'sad' });
-        } else {
-          await api.say('ginerva', 'Sit down, Miss Bartley. This is not a social hour.', { mood: 'angry' });
-          await api.think('Her ruler isn\'t in her hand today. Her hands won\'t stay still.');
-        }
-        api.set('ch15_talkGinerva', true);
-      }, again: [['ginerva', 'Sit. Down.']] },
-      { id: 'c15_annette', spec: 'annette', at: P.annette, facing: 'down', talk: async function (api) {
-        await api.say('annette', 'Well, dear. Here we are. Just us girls and the boy.', { mood: 'smug' });
-        var c = await api.choice(['"You don\'t deserve to walk out of here."', '"Good luck, Annette. You\'ll need it."', '(Say nothing.)']);
-        if (c === 0) { api.add('m_annette', -3); await api.say('annette', 'Deserve. Such a big word for a little room. Nobody here deserves anything, sweetheart. We just get.', { mood: 'smug' }); }
-        else if (c === 1) { api.add('m_annette', 5); await api.say('annette', 'Ha! There she is. You remind me of me, you know. Before the arthritis.', { mood: 'happy' }); }
-        else await api.say('annette', 'The silent treatment. My late husband tried that too.', { mood: 'smug' });
-      }, again: [['annette', 'Save your breath for the cameras, dear.', 'smug']] },
-      { id: 'c15_isaiah', spec: 'isaiah', at: P.isaiah, facing: 'right' },
-      { id: 'c15_tbk1', spec: 'tb_frog', at: P.tbk1, facing: 'down', talk: [{ narrate: 'A True Believer kneels beneath Samantha. The gold frog mask doesn\'t move.' }] },
-      { id: 'c15_tbk2', spec: 'tb_mouse', at: P.tbk2, facing: 'down', talk: [{ narrate: 'Mouse. Tall and reedy. Kneeling like a statue under the dolls.' }] },
-      { id: 'c15_tbdoor', spec: 'tb_dog', at: P.tbdoor, facing: 'left' }
-    ];
-    var objects = [
-      { id: 'c15_samantha', at: P.samantha, prop: 'samantha', examine: [{ narrate: 'Samantha. Blood-red palm-leaf hair, icy blue eyes, puffy purple lips, a face like a beach ball. She holds a gavel.' }, { think: 'She\'s also the camera. She has seen every vote I ever cast.' }] },
-      { id: 'c15_throne', at: P.throne, prop: 'throne', examine: 'The Judge\'s jeweled throne. It was carried up here for the final week, as if the dolls needed a king.' },
-      { id: 'c15_window', at: P.window, solid: false, layer: 1, examine: [{ narrate: 'The window looks over the three-car lot. It\'s raining. It\'s always raining up here.' }, { think: 'Somewhere past the rain is a road, and somewhere past the road is Waverly. Hang on, baby. I\'m coming for you soon.' }] },
-      { id: 'c15_shelf', at: P.shelf, solid: false, layer: 1, examine: 'Dolls, floor to ceiling. Red streaks trailing from hollow eyes. Rictus grins.' },
-      { id: 'c15_lunachair', at: P.lunachair, solid: false, layer: -1, examine: 'Your folding chair. It squeaks when you breathe.' }
-    ];
-    if (shared) { base.npcs = (base.npcs || []).concat(npcs); base.objects = (base.objects || []).concat(objects); base.spawn = P.arrive; }
-    else { base.npcs = npcs; base.objects = objects; base.spawn = P.arrive; base.ambient = 'tension'; base.tint = '#3a0a1a'; base.tintAlpha = 0.14; base.dark = 0.3; base.playerLight = 40;
-      base.lights = [{ at: [7, 1], r: 46, flicker: true }, { at: [8, 6], r: 70 }, { at: [11, 0], r: 30 }]; }
-    base.P = P;
-    return base;
+    var ext = {
+      ambient: 'tension',
+      npcs: [
+        { id: 'c15_judge', spec: 'judge_robe', at: DM.judge, facing: 'down', talk: [['judge_robe', 'Sit, Miss Luna. Your last walk is coming soon enough.', 'smug']] },
+        { id: 'c15_trader', spec: 'trader_hurt', at: DM.trader, facing: 'up', talk: async function (api) {
+          await api.narrate('He doesn\'t look up. Deep purple bruises ring his eyes, and a single long cut runs across his cheek, so smooth it could only have been done with a blade.');
+          await api.think('Whatever spark he had at the lie detector, his father has stamped it out.');
+        }, again: [{ think: 'He stares at the floor like it owes him money.' }] },
+        { id: 'c15_ginerva', spec: 'ginerva', at: DM.ginerva, facing: 'left', talk: async function (api) {
+          if (api.get('f_promised_ginerva')) {
+            await api.say('ginerva', 'You promised.', { mood: 'sad' });
+            await api.think('She means Trader. Repent to his father. As if his father would listen.');
+            var c = await api.choice(['"I haven\'t forgotten."', '"Look at him, Ginerva. Look what Silas did."']);
+            if (c === 0) await api.say('ginerva', 'See that you don\'t. There isn\'t much time left. For any of us.', { mood: 'tired' });
+            else await api.say('ginerva', 'I see it every day, Miss Bartley. I have for twenty-four years.', { mood: 'sad' });
+          } else {
+            await api.say('ginerva', 'Sit down, Miss Bartley. This is not a social hour.', { mood: 'angry' });
+            await api.think('Her ruler isn\'t in her hand today. Her hands won\'t stay still.');
+          }
+          api.set('ch15_talkGinerva', true);
+        }, again: [['ginerva', 'Sit. Down.']] },
+        { id: 'c15_annette', spec: 'annette', at: DM.annette, facing: 'left', talk: async function (api) {
+          await api.say('annette', 'Well, dear. Here we are. Just us girls and the boy.', { mood: 'smug' });
+          var c = await api.choice(['"You don\'t deserve to walk out of here."', '"Good luck, Annette. You\'ll need it."', '(Say nothing.)']);
+          if (c === 0) { api.add('m_annette', -3); await api.say('annette', 'Deserve. Such a big word for a little room. Nobody here deserves anything, sweetheart. We just get.', { mood: 'smug' }); }
+          else if (c === 1) { api.add('m_annette', 5); await api.say('annette', 'Ha! There she is. You remind me of me, you know. Before the arthritis.', { mood: 'happy' }); }
+          else await api.say('annette', 'The silent treatment. My late husband tried that too.', { mood: 'smug' });
+        }, again: [['annette', 'Save your breath for the cameras, dear.', 'smug']] },
+        { id: 'c15_isaiah', spec: 'isaiah', at: DM.isaiah, facing: 'right' },
+        { id: 'c15_tbdoor', spec: 'tb_dog', at: DM.tbdoor, facing: 'up' }
+      ],
+      objects: [
+        { id: 'judge_throne', at: DM.throne, prop: 'up_throne', solid: true, layer: 1, examine: 'The Judge\'s jeweled throne. It was carried up here for the final week, as if the dolls needed a king.' }
+      ]
+    };
+    if (G.shared && G.shared.has(H.doll)) return G.shared.map(H.doll, ext);
+    return Object.assign({ name: 'The Doll Room', tiles: boxTiles(18, 14, ',', [[3, 13]]), spawn: DM.arrive }, ext);
+  }
+  /** Minimal placeholder room: wall frame, floor, door tiles. */
+  function boxTiles(w, h, floor, doors) {
+    var rows = [];
+    for (var y = 0; y < h; y++) { var r = ''; for (var x = 0; x < w; x++) r += (y === 0 || x === 0 || y === h - 1 || x === w - 1) ? '#' : floor; rows.push(r); }
+    (doors || []).forEach(function (d) { rows[d[1]] = rows[d[1]].slice(0, d[0]) + 'D' + rows[d[1]].slice(d[0] + 1); });
+    return rows;
   }
 
   /* --- The blindfold walk (local, almost black) --- */
@@ -228,30 +172,13 @@
     ]
   };
 
-  /* --- The Confessional (local 7x5; shared if it lands) --- */
-  var CONF_TILES = [
-    'ZZZZZZZ',
-    'Z,,T,,Q',
-    'Z,,,,,Q',
-    'Z,,,,,Q',
-    'ZZZDZZZ'
-  ];
-  var CP = { arrive: [3, 3], slip: [3, 1], box: [5, 1], cam: [1, 1] };
+  /* --- The Confessional: shared (ballot_slips, ballot_box, cam_confessional, leader_wall, white_wall). --- */
+  var CFM = { arrive: (spawns(H.conf).from_doll_room) || [2, 3], seat: mk(H.conf, 'seat', [2, 2]) };
   function confessional() {
-    var shared = G.shared && G.shared.has(H.conf);
-    var base = shared ? G.shared.map(H.conf, {}) : { name: 'The Confessional', tiles: CONF_TILES, legend: { Z: 'leaderwall', Q: 'whitewall' } };
-    var P = CP;
-    if (shared) { var f = fitter(base, 7, 5); P = {}; Object.keys(CP).forEach(function (k) { P[k] = f(CP[k]); }); }
-    var objects = [
-      { id: 'c15_slip', at: P.slip, prop: 'ballot', solid: false },
-      { id: 'c15_box', at: P.box, prop: 'toaster', examine: 'The ballot box is shaped like a toaster. Somebody in DPE thought that was funny.' },
-      { id: 'c15_cam', at: P.cam, prop: 'camera', solid: false, layer: 1, examine: [{ think: 'A red light. The Great Leader on three walls, the nation on the fourth.' }] }
-    ];
-    base.objects = (base.objects || []).concat(objects);
-    base.spawn = P.arrive;
-    if (!shared) { base.ambient = 'hum'; base.dark = 0.25; base.playerLight = 30; base.tint = '#2a2010'; base.tintAlpha = 0.12; }
-    base.P = P;
-    return base;
+    var ext = { ambient: 'tension' };
+    if (G.shared && G.shared.has(H.conf)) return G.shared.map(H.conf, ext);
+    return { name: 'The Confessional', tiles: boxTiles(5, 5, ',', [[2, 4]]), spawn: CFM.arrive, ambient: 'tension',
+      objects: [{ id: 'ballot_slips', at: [3, 1], prop: 'ballot' }, { id: 'ballot_box', at: [2, 1], prop: 'toaster' }] };
   }
 
   /* --- The Gym courtroom (shared, staged with its marks) --- */
@@ -499,6 +426,7 @@
           }
           var stage = Math.min(2, Math.floor(prog * 3));
           if (ctx.t - msgT > 3 && prog > 0.05) { msg = LINES[stage]; }
+          if (G.dev) G.ch15dbg = { x: x, prog: prog, flinches: flinches }; // test-driver probe (dev only)
           if (prog >= 1) { done = true; doneT = ctx.t; ctx.sound('success'); msg = 'There. A bit of metal in a bloody little puddle. You\'re welcome.'; }
         }, function (t) {
           var W = ctx.W;
@@ -659,7 +587,7 @@
       api.set({ ch15_holo: false, ch15_holoL: null, ch15_holoR: null });
 
       /* ============ 1. THE DOLL ROOM: the final private vote opens ============ */
-      await api.goRoom(H.doll, { at: DOLL.P.arrive, facing: 'left' });
+      await api.goRoom(H.doll, { at: DM.arrive, facing: 'up' });
       await api.narrate('The final private vote. Millions of people are tuning in to find out who makes the final two. You even struggled out of bed and into the shower this morning.');
       await api.think('No matter how bad things are, I still have a goal. Hang on, Waverly. I\'m coming for you soon.');
       api.onAir(true); api.approval(true);
@@ -689,11 +617,11 @@
 
       /* ============ 3. THE CONFESSIONAL ============ */
       api.setPlayer('luna');
-      await api.goRoom(H.conf, { at: CONF.P.arrive, facing: 'up' });
+      await api.goRoom(H.conf, { at: CFM.seat, facing: 'up' });
       await api.narrate('The blindfold comes off. The Great Leader smiles at you from three walls: reading to children, saluting soldiers, staring. The fourth wall is fresh white paint.');
       await api.think('A small table. A slip of paper. A camera with a red light. My third time choosing who dies.');
       api.objective('Cast your vote');
-      await api.waitForInteract('c15_slip');
+      await api.waitForInteract('ballot_slips');
       api.objective(null);
       await api.narrate('The slip lists two names. ANNETTE. ISAIAH.');
       var voted = false;
@@ -718,7 +646,7 @@
 
       /* ============ 4. THE COUNT ============ */
       await api.fadeOut(500);
-      await api.goRoom(H.doll, { at: DOLL.P.luna, facing: 'up' });
+      await api.goRoom(H.doll, { at: DM.lunaStand, facing: 'up' });
       api.lockPlayer();
       await api.say('judge_robe', 'The votes are in. Let us hear them, in the order they were cast.', { mood: 'smug' });
       await api.say('annette', 'Isaiah. Much as I would prefer to vote for Luna, as she lost the competition, I have been given no choice.', { mood: 'smug' });
@@ -927,8 +855,6 @@
       ], { mood: 'cry' });
       await api.think('I\'m so sorry, Luna. I love you. The tape. Twenty-four years of hating her for leaving me, and she never left. They took her.');
       await api.narrate('You stand. You walk to him. You take the gun out of his fingers, and he lets you.');
-      api.addObject({ id: 'c15_dropped', at: [CM.trader[0], CM.trader[1] + 1], prop: 'pistol', solid: false, layer: -1 });
-      api.remove('c15_dropped');
       await api.narrate('Ginerva folds him into her arms. He clutches her like a lifeline and weeps.');
 
       /* ============ 9. THE CHOICE ============ */
@@ -1059,8 +985,6 @@
         /* ============ 13. THE CALL ============ */
         await api.think('Trader\'s phone. Cracked screen, smeared with his blood. One list of contacts.');
         await api.note({ title: 'CONTACTS', text: 'W\nG\nHQ - DO NOT ANSWER\nFATHER' });
-        var call = 0;
-        while (call !== 0) { /* unreachable: placeholder for readability */ }
         var c1 = await api.choice(['(Call the top number. W.)', '(Not yet. Breathe first.)']);
         if (c1 === 1) { await api.think('Seven seconds. One. Two. Three. Four. Five. Six. Seven.'); }
         api.set('f_called_top_number', true);

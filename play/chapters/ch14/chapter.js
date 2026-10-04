@@ -214,7 +214,7 @@
       name: 'Room No. 3 (locked)',
       ambient: 'hum', dark: 0.25, playerLight: 50,
       remove: ['booklet'],
-      objects: [book, { id: 'ch14_plate', at: P.plate, solid: false, layer: 1, draw: plateDraw }],
+      objects: [book, { id: 'ch14_plate', at: P.plate, solid: false, layer: 1, draw: plateDraw, examine: [{ think: 'One meal a day.' }] }],
       patch: {
         window: { examine: [{ think: 'The garden. Pink almond blossoms in January. Somewhere past the fence is a road, and somewhere past the road is Waverly.' }] },
         smoke_detector: { examine: [{ think: 'The smoke detector. "Eye". It never blinks.' }] }
@@ -261,7 +261,9 @@
     lights: ARENA_LIGHTS.concat([{ at: [9, 6], r: 64 }]),
     npcs: [
       { id: 'ch14_opp', name: 'Pratt', at: [9, 4], spec: { name: 'Pratt', skin: '#d8b090', hair: '#2a1a10', hairStyle: 'buzz', outfit: '#6a6e76', outfit2: '#6a6e76', style: 'jumpsuit', accessory: ['number', 'beard'], height: 'tall', build: 'broad', voice: 200 },
-        path: [[6, 4], [13, 4], [13, 8], [6, 8]], pause: 0.6, speed: 34, turn: false }
+        path: [[6, 4], [13, 4], [13, 8], [6, 8]], pause: 1.2, speed: 30, turn: false,
+        // placeholder: the real handler is installed with api.onInteract (constraint: W.isInteractable only sees def handlers)
+        talk: [{ think: 'Not from the front.' }] }
     ],
     objects: [
       { id: 'ch14_banner', at: [9, 0], prop: 'penguin_logo', solid: false, layer: 1, examine: 'The DPE penguin, ten feet tall, smiling down on the sand.' },
@@ -420,6 +422,12 @@
   /* ---------------------------------------------------------------------
    * HELPERS
    * ------------------------------------------------------------------- */
+  /** Idempotent movement lock. (constraint: api.lockPlayer is a COUNTER (W.lockMove++), so an
+   *  unbalanced lock left the player frozen at later free-roam waits; autoplay never noticed) */
+  function lock(api, on) {
+    if (on && !ST.locked) { api.lockPlayer(); ST.locked = true; }
+    else if (!on && ST.locked) { api.unlockPlayer(); ST.locked = false; }
+  }
   function addInsight(api, why) {
     var v = Math.min(7, Math.max(0, api.get('m_trader_insight', 0) + 1));
     api.set('m_trader_insight', v);
@@ -469,6 +477,7 @@
     await api.think('He is the last one. Pratt. He hurt children. He hurt everyone in this show, the strong and the weak. He can never walk out of here.');
     await api.think('He is bigger. He is faster. But he only ever looks one way.');
     api.set('ch14_strikeFails', 0);
+    lock(api, false);
     api.onInteract('ch14_opp', async function (api2) {
       var n = api2.npc('ch14_opp'), pt = api2.playerTile();
       var nt = { x: Math.floor(n.x / 16), y: Math.floor((n.y - 2) / 16) };
@@ -486,14 +495,14 @@
     });
     await api.until(function (f) { return f.ch14_struck; }, { objective: 'Get behind Pratt. Strike when his back is turned.', target: 'ch14_opp' });
     api.objective(null);
-    api.lockPlayer();
+    lock(api, true);
     var q = await api.minigame('qte', { mode: 'timing', title: 'THE LAST ROUND', prompt: 'Strike while his back is turned.', rounds: 3, need: 2 });
     api.set('ch14_strikeClean', !!q.success);
     for (var i = 0; i < 3; i++) { api.sound('hit'); api.flash('#7a0a14', 160); await api.shake(220, 2); await api.wait(220); }
     await api.narrate(q.success
       ? 'She strikes, and strikes, and strikes, until the crowd\'s roar is the only thing in the arena still moving.'
       : 'He turns. He nearly has her. Then she is behind him again, and she does not stop until the crowd\'s roar is the only thing still moving.');
-    api.hide('ch14_opp');
+    api.remove('ch14_opp');
     api.sound('applause');
     await api.narrate('Pratt is down. He will not get up. The lights swing to her.');
     // young Trader runs in from the wings
@@ -512,10 +521,10 @@
     api.sound('reveal');
     api.addObject({ id: 'ch14_mic', at: [9, 3], prop: 'mic_stand' });
     await api.narrate('A microphone stand rises out of the sand at the centre of the ring. The victory speech. The whole country watching, live.');
-    api.unlockPlayer();
+    lock(api, false);
     await api.waitForInteract('ch14_mic', { objective: 'Step up to the microphone.' });
     api.objective(null);
-    api.lockPlayer();
+    lock(api, true);
     api.teleport([9, 4], 'up');
     await api.say('franchesca_show', ['Thank you. I\'m not going to thank the DPE.', 'I want to tell you something they don\'t want you to hear. Something a man told me in the dark.'], { mood: 'neutral' });
     // the True Believer steps out of the wings; we SEE him and Trader's face before the feed dies
@@ -533,7 +542,7 @@
     api.flash('#ffffff', 300);
     await api.slides([{ style: 'montage', title: 'SIGNAL LOST', text: 'WE ARE EXPERIENCING TECHNICAL DIFFICULTIES. PLEASE STAND BY.', ms: 2600 }]);
     await api.fadeOut(500, '#000');
-    api.unlockPlayer();
+    lock(api, false);
     api.setPlayer('luna');
     api.ambient(null);
   }
@@ -559,7 +568,7 @@
     },
 
     start: async function (api) {
-      ST.s = { A: 0, L: 0, I: 0 }; ST.screen = 'idle'; ST.hist = [];
+      ST.s = { A: 0, L: 0, I: 0 }; ST.screen = 'idle'; ST.hist = []; ST.locked = false;
       var DP = maps[H.doll].ch14Pos, LP = maps[H.luna].ch14Pos;
       api.data.dollPos = DP;
       var seat = DP.seatL;
@@ -572,7 +581,7 @@
       api.objective('Take your seat. (Look around first, if you dare.)', { target: 'chair_6' });
       await api.waitForInteract('chair_6', { objective: 'Take your seat. (Look around first, if you dare.)' });
       api.objective(null);
-      api.lockPlayer();
+      lock(api, true);
       api.teleport(seat, 'up');
 
       // the wiring
@@ -774,7 +783,7 @@
       await api.goRoom(H.doll, { at: seat, facing: 'up', fade: false });
       api.remove('ch14_tray');
       api.addObject({ id: 'ch14_tray', at: DP.cart, draw: trayDraw, solid: false, layer: 1 });
-      api.lockPlayer();
+      lock(api, true);
       await api.fadeIn(700);
       api.onAir(true); api.approval(true);
       await api.say('annette', ['Your mother didn\'t say what anyone expected. She revealed state secrets that she should have never known. On national television.', 'And then, right there on that stage, with the whole world watching, your mother killed herself.'], { mood: 'smug' });
@@ -895,7 +904,7 @@
       await api.titleCard('Tuesday', 'Confined', 2000);
       api.set('ch14_day', 1);
       await api.goRoom(H.luna, { at: LP.arrive, facing: 'up', fade: false });
-      api.unlockPlayer();
+      lock(api, false);
       await api.fadeIn(700);
       await api.narrate('The key in the lock is the only warning before Ginerva strolls in, sets a woefully underfilled plate on the desk, and walks away without a word.');
       await api.think('I need the silence. I\'m grateful for that one small kindness.');
@@ -922,13 +931,13 @@
       api.onInteract('bed', async function (a) {
         var d = a.get('ch14_day', 1);
         if (d === 1) {
-          var cc = await a.choice([{ text: 'Lie down. Let the day end.' }, { text: 'Not yet.' }]);
+          var cc = await a.choice([{ text: 'Lie down. Let the day end.' }, { text: 'Not yet.' }], { autoPick: 0 });
           if (cc === 0) a.set('ch14_slept1', true);
         } else await a.think('The silk is too cold. It always is.');
       });
       await api.until(function (f) { return f.ch14_slept1; }, { objective: 'Pass the day. (The bed ends it.)', targets: ['tablet', 'falsville_book', 'ch14_plate', 'bed'] });
       api.objective(null);
-      api.lockPlayer();
+      lock(api, true);
       await api.narrate('The days flow into each other like a pond into a river. Isaiah\'s face. Waverly\'s twig-like arms. Over and over.');
       await api.fadeOut(800);
 
@@ -940,10 +949,10 @@
       await api.narrate('The key in the lock. Ginerva, at her usual time, with her usual plate. She sets it down. And then, instead of leaving, she opens her mouth. And closes it again.');
       api.addNpc({ id: 'ch14_gin', spec: 'ginerva', at: LP.door, facing: 'up' });
       api.face('player', 'ch14_gin');
-      api.unlockPlayer();
+      lock(api, false);
       await api.waitForInteract('ch14_gin', { objective: 'Ginerva is waiting to say something.' });
       api.objective(null);
-      api.lockPlayer();
+      lock(api, true);
       await api.say('ginerva', 'I was never in favor of you being a part of this. I knew he would get himself into trouble if he got you involved, but he just couldn\'t help himself after that business with your mother.', { mood: 'neutral' });
       await api.say('luna', 'Why are you telling me this?', { mood: 'tired' });
       await api.say('ginerva', 'Propriety is important, make no mistake. Trader was improper and therefore it is only fair that he suffer the consequences. And yet...', { mood: 'sad' });
@@ -985,7 +994,7 @@
       await api.think('The garden under the window, silver in the floodlights. The fence. The road beyond it.');
       await api.think('If it reads what we believe, then Annette only believes the tape. Then I don\'t know what happened to my mother. Not yet.');
       await api.think('Hang on, Waverly. I\'m coming for you soon.');
-      api.unlockPlayer();
+      lock(api, false);
       api.completeChapter();
     }
   });

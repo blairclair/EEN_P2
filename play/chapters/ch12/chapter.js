@@ -582,7 +582,7 @@
     ],
     objects: [
       { id: 'ch12_locker', at: [14, 4], prop: 'box', solid: true, examine: function (api) { return packItem(api, 'cans'); } },
-      { id: 'ch12_basket', at: [6, 10], prop: 'bag', solid: true, examine: function (api) { return packItem(api, 'jacket'); } }
+      { id: 'ch12_basket', at: [6, 9], prop: 'bag', solid: false, examine: function (api) { return packItem(api, 'jacket'); } }
     ]
   });
 
@@ -1293,7 +1293,7 @@
     ];
     while (!opened) {
       var avail = pitch.filter(function (p) { return !p.used; });
-      var idx = await api.choice(avail.map(function (p) { return p.text; }), { autoPick: avail.length - 1 });
+      var idx = await api.choice(avail.map(function (p) { return p.text; }), {});
       var pick = avail[idx]; pick.used = true;
       if (pick.open) { opened = true; break; }
       await api.say('luna', pick.text);
@@ -1576,8 +1576,7 @@
       var good = 0, bad = 0;
       while (good < 3 && bad < 3) {
         var avail = prompts.filter(function (p) { return !p.used; });
-        var auto = 0; avail.forEach(function (p, j) { if (p.good && !avail[auto].good) auto = j; });
-        var i = await api.choice(avail.map(function (p) { return p.text; }), { autoPick: auto, prompt: 'Say the true thing (' + good + '/3)' });
+        var i = await api.choice(avail.map(function (p) { return p.text; }), { prompt: 'Say the true thing (' + good + '/3)' });
         var pk = avail[i]; pk.used = true;
         await api.say('luna', pk.text);
         await api.say('delphin', pk.reply[0], { mood: pk.reply[1] });
@@ -1651,7 +1650,7 @@
     while (true) {
       var opts = points.filter(function (p) { return !p.used; }).map(function (p) { return { text: p.text, id: p.id }; });
       if (asked >= 2) opts.push({ text: 'Why did you kill them? The men.', id: 'why' });
-      var i = await api.choice(opts.map(function (o) { return o.text; }), { prompt: 'Push her on...', autoPick: asked >= 2 ? opts.length - 1 : 0 });
+      var i = await api.choice(opts.map(function (o) { return o.text; }), { prompt: 'Push her on...' });
       var o = opts[i];
       if (o.id === 'why') break;
       var pt = points.filter(function (p) { return p.id === o.id; })[0]; pt.used = true; asked++;
@@ -1803,7 +1802,7 @@
     while (!named) {
       var opts = [{ text: 'Annette.', id: 'annette' }];
       if (!spoiled) opts.push({ text: 'Delphin.', id: 'delphin' }, { text: 'Isaiah.', id: 'isaiah' }, { text: 'Myself.', id: 'luna' });
-      var i = await api.choice(opts.map(function (o) { return o.text; }), { prompt: 'Write a name on the ballot', autoPick: 0 });
+      var i = await api.choice(opts.map(function (o) { return o.text; }), { prompt: 'Write a name on the ballot' });
       var o = opts[i];
       if (o.id === 'annette') { named = 'annette'; break; }
       spoiled++;

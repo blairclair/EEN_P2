@@ -877,7 +877,8 @@
 
   async function sneakHall(api) {
     var hall = G.shared && G.shared.maps && G.shared.maps[H.hall];
-    var cams = ((G.shared.data.cameras || {})[H.hall] || []).map(function (c) { return { at: c.at, angle: c.angle, sweep: c.sweep || 60, range: c.range || 64, fov: c.fov || 45, speed: c.speed || 0.7 }; });
+    // canon §3: a SOLID red dot only records (AI-reviewed later); only FLASHING (live) cameras count as detection.
+    var cams = ((G.shared.data.cameras || {})[H.hall] || []).filter(function (c) { return c.live; }).map(function (c) { return { at: c.at, angle: c.angle, sweep: c.sweep || 60, range: c.range || 64, fov: c.fov || 45, speed: c.speed || 0.7 }; });
     var params = hall ? {
       map: hall.tiles.slice(), legend: G.cloneDef(hall.legend || {}), cameras: cams,
       start: [1, 3], goal: mark(H.hall, 'from_supply_closet', [25, 1])

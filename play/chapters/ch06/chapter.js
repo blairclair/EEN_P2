@@ -185,15 +185,18 @@
     }
   });
 
+  // The engine only marks an NPC interactable when its DEF has a handler; api.onInteract overrides
+  // alone leave it dead to the keyboard (autoplay doesn't notice). STUB is replaced at runtime.
+  var STUB = [{ think: '...' }];
   var lounge = G.shared.map(ROOM.lounge, {
     npcs: [
-      { id: 'trader', at: [6, 2], facing: 'down' },
-      { id: 'kessie', at: [1, 4], facing: 'right' },
-      { id: 'isaiah', at: [11, 7], facing: 'up' },
-      { id: 'carol', at: [7, 4], facing: 'up', turn: false },
-      { id: 'delphin', at: [3, 2], facing: 'down' },
-      { id: 'annette', at: [11, 4], facing: 'left' },
-      { id: 'cameraman', at: [1, 7], facing: 'right', turn: false }
+      { id: 'trader', at: [6, 2], facing: 'down', talk: STUB },
+      { id: 'kessie', at: [1, 4], facing: 'right', talk: STUB },
+      { id: 'isaiah', at: [11, 7], facing: 'up', talk: STUB },
+      { id: 'carol', at: [7, 4], facing: 'up', turn: false, talk: STUB },
+      { id: 'delphin', at: [3, 2], facing: 'down', talk: STUB },
+      { id: 'annette', at: [11, 4], facing: 'left', talk: STUB },
+      { id: 'cameraman', at: [1, 7], facing: 'right', turn: false, talk: STUB }
     ],
     patch: {
       lounge_mirror: { examine: [{ think: 'The mirror Carol and Kessie fought over. Tonight nobody wants to look in it.' }] },
@@ -796,6 +799,7 @@
     await api.goRoom(ROOM.dorm, { at: [8, 5], facing: 'up', fade: false });
     await api.fadeIn(900);
     await api.think('I\'m eight. The room is full of bunk beds and nobody is sleeping. Everybody is looking at the screen.');
+    unlock(api);
     await api.waitForInteract('dorm_tv', { objective: 'Watch the screen' });
     lock(api);
     await api.tv([

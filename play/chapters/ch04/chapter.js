@@ -125,12 +125,14 @@
     npcs: [
       { id: 'trader', at: POS.arena.trader, facing: 'left', talk: [['trader', 'Calibrations, darling. Patience is a virtue. You could use a few of those.', 'smug']] },
       { id: 'ginerva', at: POS.arena.ginerva, facing: 'left', talk: [['ginerva', 'Return to your place, Ms. Bartley.']] },
-      { id: 'delphin', at: POS.arena.delphin, facing: 'up' },
-      { id: 'isaiah', at: POS.arena.isaiah, facing: 'down' },
-      { id: 'annette', at: POS.arena.annette, facing: 'up' },
-      { id: 'kessie', at: POS.arena.kessie, facing: 'right' },
-      { id: 'john', at: POS.arena.john, facing: 'down' },
-      { id: 'carol', at: POS.arena.carol, facing: 'right' },
+      // talk: [] marks them interactable; the real lines are set with api.onInteract in start()
+      // (constraint: W.isInteractable only looks at def.talk/examine/run, not onInteract overrides)
+      { id: 'delphin', at: POS.arena.delphin, facing: 'up', talk: [] },
+      { id: 'isaiah', at: POS.arena.isaiah, facing: 'down', talk: [] },
+      { id: 'annette', at: POS.arena.annette, facing: 'up', talk: [] },
+      { id: 'kessie', at: POS.arena.kessie, facing: 'right', talk: [] },
+      { id: 'john', at: POS.arena.john, facing: 'down', talk: [] },
+      { id: 'carol', at: POS.arena.carol, facing: 'right', talk: [] },
       { id: 'c4_elephant', spec: 'tb_elephant', at: POS.arena.tbs[0], facing: 'left', visible: false, turn: false },
       { id: 'c4_hippo', spec: 'tb_hippo', at: POS.arena.tbs[1], facing: 'left', visible: false, turn: false },
       { id: 'c4_boar', spec: 'tb_boar', at: POS.arena.tbs[2], facing: 'left', visible: false, turn: false }
@@ -214,9 +216,11 @@
     { id: 'v_onl2', at: [26, 20], spec: extra('citizen', 502, {}), facing: 'up' },
     { id: 'v_onl3', at: [26, 18], spec: extra('citizen', 503, {}), facing: 'left' }
   ];
+  // Every sim NPC gets a placeholder talk so real keypresses reach the api.onInteract handler.
+  simNpcs.forEach(function (d) { if (!d.talk) d.talk = []; });
   CROWD_SPOTS.forEach(function (p, i) {
     var L = CROWD_LINES[i % CROWD_LINES.length];
-    simNpcs.push({ id: 'v_c' + i, at: p, spec: extra('citizen', 600 + i, { name: L[0] }), facing: i % 2 ? 'left' : 'down', wander: i % 3 === 0, radius: 1 });
+    simNpcs.push({ id: 'v_c' + i, at: p, spec: extra('citizen', 600 + i, { name: L[0] }), facing: i % 2 ? 'left' : 'down', wander: i % 3 === 0, radius: 1, talk: [] });
   });
 
   var sim = {
@@ -228,7 +232,7 @@
     tint: '#9fd8ff', tintAlpha: 0.06, vignette: 0.55, bg: '#0a0c12',
     npcs: simNpcs,
     objects: [
-      { id: 'v_reflection', at: [8, 5], examine: null },
+      { id: 'v_reflection', at: [8, 5], examine: [] },
       { id: 'v_pharmacy', at: [31, 4], prop: 'ch04:pharmacySign', solid: false, layer: 1, examine: 'PHARMACY. Open twenty-four hours. Prescriptions while you wait.' },
       { id: 'v_stall', at: [5, 19], prop: 'ch04:stall', examine: [{ narrate: 'A food stall. Something on the grill smells of cooking meat.' }, { think: 'Meat. Real meat. Even fake hunger is still hunger.' }] },
       { id: 'v_chair', at: [24, 23], prop: 'ch04:wheelchair', solid: false, layer: -1 }

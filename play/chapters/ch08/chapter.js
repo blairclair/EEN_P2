@@ -110,6 +110,7 @@
         e.remove = (e.remove || []).concat(ids);
         e.exits = (e.exits || []).concat(ids.map(function (x) {
           var ex = G.shared.exit(id, x, { locked: lock[x].locked, lockedText: lock[x].lockedText });
+          if (lock[x].toAt) ex.toAt = lock[x].toAt;
           if (!ex.toAt && ex.to && G.shared.at) { var sp = G.shared.at(ex.to, 'from_' + String(id).replace(/^house_/, '')); if (sp) ex.toAt = sp; }
           return ex;
         }));
@@ -284,6 +285,10 @@
       SN.alert = 0; SN.susp = 0; SN.noise = 0; SN.gAlert = 0;
       if (SN.drone && SN.drone.room !== rid) { SN.drone = null; if (prev) snMsg('You slipped the drone.'); }
       if (SN.hidden) { SN.hidden = false; W.player.visible = true; }
+      if (rid === R.foyer && !SN.foyerHinted && W.room.grid[W.playerTile().y] && /stair/.test(W.room.grid[W.playerTile().y][W.playerTile().x])) {
+        SN.foyerHinted = true;
+        snHint(['THE MAIN STAIR', 'Audio sensors only. Hold SHIFT and creep down.', 'The stagecam below is FLASHING: live.'], 9);
+      }
     }
     SN.cams = camsOf(W.room.def, rid);
     SN.cams.forEach(function (c) { c.ang = c.base + Math.sin(SN.t * c.speed) * c.sweep / 2; });
@@ -314,7 +319,7 @@
     else SN.susp -= dt * 0.45;
     var tname = (W.room.grid[pt.y] && W.room.grid[pt.y][pt.x]) || '';
     SN.onStair = /stair/.test(tname);
-    if (SN.onStair && moving && !creep) SN.noise += dt * 1.25; else SN.noise -= dt * 0.5;
+    if (SN.onStair && moving && !creep) SN.noise += dt * 2.2; else SN.noise -= dt * 0.5;
     (FLOODS[rid] || []).forEach(function (f) {
       var fx = f[0] * T + 8, fy = f[1] * T + 8;
       if (Math.hypot(p.x - fx, p.y - fy) < 42 && moving && !creep) SN.alert += dt * 2.4;
@@ -400,7 +405,7 @@
       R2.text('MOSQUITO DRONE INBOUND  ' + Math.max(0, SN.drone.t).toFixed(1) + 's  -  GET TO COVER', G.W / 2, y + 3, { size: 7, align: 'center', color: pulse > 0.5 ? '#ff6070' : '#fff' });
       y += 14;
     }
-    if (SN.hidden) R2.text('HIDDEN  -  press a direction to come out', G.W / 2, y + 2, { size: 7, align: 'center', color: P.teal });
+    if (SN.hidden) R2.text('HIDDEN  -  press a direction to come out', G.W / 2, G.H - 64, { size: 7, align: 'center', color: P.teal });
     if (SN.msgT > 0 && SN.msg) R2.text(SN.msg, G.W / 2, G.H - 52, { size: 8, align: 'center', color: P.text });
     if (SN.hintT > 0 && SN.hint) {
       var lines = [].concat(SN.hint), h = 5 + lines.length * 8, bw = 168;
@@ -747,7 +752,7 @@
       to_luna_room: { locked: 'ch08_running', lockedText: [{ think: 'Not my room. Not that bed. I can\'t lie still. I have to keep moving.' }] },
       to_screening_room: { locked: ALWAYS, lockedText: [{ think: 'The screening room. I\'ve seen enough on that screen.' }] },
       to_annette_room: { locked: ALWAYS, lockedText: [{ think: 'Annette\'s door. Better not.' }] },
-      to_foyer: { locked: 'ch08_running', lockedText: [{ think: 'Not back down there.' }] }
+      to_foyer: { locked: 'ch08_running', lockedText: [{ think: 'Not back down there.' }], toAt: [12, 1] }
     }
   }, 0.66));
 
@@ -1092,7 +1097,7 @@
     ]);
 
     // ---- A: down to the Red Hall, then the footsteps ----
-    snStart(api, { hint: ['STEADY DOTS IN THIS HALL', 'They are steady, not flashing. Walk normally.', 'Stairs (west end): hold SHIFT to creep.'], hintT: 10 });
+    snStart(api, { hint: ['STEADY DOTS IN THIS HALL', 'They are steady, not flashing. Walk normally.', 'The main stair is at the west end.'], hintT: 10 });
     await api.goRoom(R.hall, { at: at(R.hall, 'from_luna_room', [14, 1]), facing: 'down' });
     var cpHall = [R.hall, at(R.hall, 'from_luna_room', [14, 1]), 'down'];
     var where = null, attempt = 0;
