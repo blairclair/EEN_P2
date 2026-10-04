@@ -931,8 +931,10 @@
       api.onInteract('bed', async function (a) {
         var d = a.get('ch14_day', 1);
         if (d === 1) {
-          var cc = await a.choice([{ text: 'Lie down. Let the day end.' }, { text: 'Not yet.' }], { autoPick: 0 });
+          // "Not yet" can be chosen twice, then it disappears (no forced autoPick, so --pick=N still sees the branch)
+          var cc = await a.choice([{ text: 'Lie down. Let the day end.' }, { text: 'Not yet.', if: function (f) { return (f.ch14_bedDecline || 0) < 2; } }]);
           if (cc === 0) a.set('ch14_slept1', true);
+          else { a.set('ch14_bedDecline', a.get('ch14_bedDecline', 0) + 1); await a.think('Not yet. There is nothing to wait for, and I wait for it anyway.'); }
         } else await a.think('The silk is too cold. It always is.');
       });
       await api.until(function (f) { return f.ch14_slept1; }, { objective: 'Pass the day. (The bed ends it.)', targets: ['tablet', 'falsville_book', 'ch14_plate', 'bed'] });
