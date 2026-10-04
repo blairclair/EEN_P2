@@ -5,7 +5,7 @@
  * Seven Code from Waverly's fridge note, leaves a coded reply, walks the night
  * city to an underground clinic, and comes home bleeding.
  *
- * Rooms: apt (night), apt_past (flashback: Waverly at 7 invents the code),
+ * Rooms: luna_apartment (shared map, night), apt_past (flashback: Waverly at 7 invents the code),
  *        street (night), alley (night), tunnels, clinic,
  *        alley_dawn, street_home (morning), apt_home (afternoon).
  * Minigames: cipher (built-in, Seven Code decode), ch01:compose (encode the
@@ -15,7 +15,7 @@
  *
  * Cross-chapter flags (CHAPTERS.md §2):
  *   WRITES  f_code_learned  (always true on exit; the tutorial can be hinted, never skipped)
- *           m_waverly       (seeded to 60 if unset; -5 for "We'll see" about the cats)
+ *           m_waverly       (default 60 from engine flagDefaults; -5 for "We'll see" about the cats)
  *   READS   none
  * Chapter-local flags: ch01_* (see code).
  * Source: EFP L22-152, D3b L22-162, 3P L39 (knock), R1P L4 (owl clock), L95 (T.J., Arny).
@@ -99,6 +99,7 @@
       px(g, x + 5, y + 4 + b, 6, 6, '#f2efe0'); px(g, x + 6, y + 6 + b, 4, 1, '#c03030'); px(g, x + 6, y + 8 + b, 3, 1, '#c03030');
       px(g, x + 7, y + 3 + b, 2, 1, '#e8323c');
     },
+    kitchentable: function (g, x, y) { px(g, x + 1, y + 3, 14, 7, '#6a4a2e'); px(g, x + 1, y + 3, 14, 1, '#8a6a42'); px(g, x + 2, y + 10, 2, 5, '#4a3220'); px(g, x + 12, y + 10, 2, 5, '#4a3220'); },
     crayons: function (g, x, y) { px(g, x + 3, y + 5, 10, 7, '#f0ead8'); px(g, x + 5, y + 7, 3, 1, '#e8323c'); px(g, x + 9, y + 8, 2, 2, '#3fc1c9'); px(g, x + 4, y + 13, 5, 1, '#e8c15a'); },
     streetlamp: function (g, x, y, t, o) {
       var lit = o && o.def && o.def.lit;
@@ -149,80 +150,56 @@
   /* ---------------------------------------------------------------------
    * MAPS
    * ------------------------------------------------------------------- */
-  // The studio apartment (10x8). variant: 'night' | 'past' | 'home'
+  // The studio apartment: the SHARED map 'luna_apartment' (play/shared/loc_gym_offsite.js),
+  // patched per variant. variant: 'night' | 'past' (flashback) | 'home' (afternoon, collapse)
   function makeApt(variant) {
-    var night = variant === 'night', past = variant === 'past', home = variant === 'home';
-    var pre = night ? '' : variant + '_';
-    var m = {
-      name: past ? 'Four Years Ago' : 'Home',
-      tiles: [
-        '##W###W###',
-        '#h..KOSF.#',
-        '#h.......#',
-        '#h..TT...#',
-        '#...TT.YY#',
-        '#RR...Y.b#',
-        '#RR.....b#',
-        '##D#######'
+    var night = variant === 'night', past = variant === 'past';
+    var ext = {
+      name: past ? 'Four Years Ago' : 'Apartment 3C',
+      remove: ['peanut_butter'],
+      npcs: [], zones: [],
+      objects: [
+        { id: 'table', at: [4, 4], prop: 'kitchentable', solid: true,
+          examine: night ? 'The table. One leg is a stack of EduTV pamphlets.' : 'The table.' },
+        { id: 'window', at: [7, 0], examine: night
+          ? [{ narrate: 'Down on the street, an EEN screen flickers on the corner. Someone is screaming on it. Someone always is.' }, { think: 'Neighborhood Scared Straight. Nobody in this neighbourhood is scared straight. Just scared.' }]
+          : past ? 'Afternoon sun. The street is loud with kids. Back then I still thought things would get better.' : 'Bright. Too bright.' }
       ],
-      legend: { 'Y': 'curtain' },
-      spawn: [7, 2],
-      ambient: past ? null : 'hum',
-      bg: '#050508',
-      npcs: [], objects: [], zones: [], exits: []
+      patch: {
+        owl_clock: { examine: past ? 'The owl clock. HOPE YOU HAVE A HOOT OF A GOOD DAY. It was already chipped back then.'
+          : [{ narrate: 'A chipped owl clock. HOPE YOU HAVE A HOOT OF A GOOD DAY.' }, { think: night ? 'Three a.m. Only an hour until my appointment.' : 'Its eyes tick back and forth. I can\'t read the hands. Everything swims.' }],
+          again: night ? [{ think: 'Tick. Tock. The owl doesn\'t care.' }] : null },
+        couch: { examine: night ? [{ narrate: 'The lumpy couch. My bed. The springs have opinions.' }, { think: 'She gets the real bed. That was never a question.' }]
+          : past ? 'The couch. Newer then. Still lumpy.' : 'The couch.' },
+        stove: { examine: night ? 'Two burners. One works, if you jiggle the knob and believe in yourself.' : 'The stove.' },
+        books: { examine: night ? [{ narrate: 'Nine books, stolen from Columbus the day they cast me out. Waverly has read every one of them until the spines went soft.' }, { think: 'Turning eighteen was supposed to be a magic trick that let you survive overnight. I brought my own magic.' }] : 'Nine books.' },
+        bartholomew: { examine: night ? [{ narrate: 'Bartholomew. I got him for her third birthday. His left eye has gone yellow, and fuzz is leaking from the seam near his back again.' }, { think: 'I\'ll patch him tomorrow. Add it to the list.' }, { set: { ch01_sawBear: true } }] : 'Bartholomew.' }
+      }
     };
     if (night) {
-      m.dark = 0.62; m.playerLight = 34;
-      m.lights = [{ at: [2, 0], r: 30 }, { at: [6, 0], r: 30 }, { at: [7, 1], r: 26 }];
-      m.tint = '#203050'; m.tintAlpha = 0.18;
-    } else if (past) {
-      m.tint = '#ffb060'; m.tintAlpha = 0.16; m.vignette = 0.7;
-    } else {
-      m.tint = '#c0a080'; m.tintAlpha = 0.12; m.vignette = 0.6;
-    }
-    m.objects.push(
-      { id: pre + 'owl', at: [3, 0], prop: 'owlclock', solid: false,
-        examine: past ? 'The owl clock. HOPE YOU HAVE A HOOT OF A GOOD DAY. It was already chipped back then.'
-          : [{ narrate: 'A chipped owl clock. HOPE YOU HAVE A HOOT OF A GOOD DAY.' }, { think: night ? 'Three a.m. Only an hour until my appointment.' : 'Its eyes tick back and forth. I can\'t read the hands. Everything swims.' }],
-        again: night ? [{ think: 'Tick. Tock. The owl doesn\'t care.' }] : null },
-      { id: pre + 'window', at: [6, 0], examine: night
-          ? [{ narrate: 'Down on the street, an EEN screen flickers on the corner. Someone is screaming on it. Someone always is.' }, { think: 'Neighborhood Scared Straight. Nobody in this neighbourhood is scared straight. Just scared.' }]
-          : past ? 'Afternoon sun. The street is loud with kids. Back then I still thought things would get better.' : 'Bright. Too bright.' },
-      { id: pre + 'window2', at: [2, 0], examine: night ? 'The curtain is a pillowcase on two nails. It does the job.' : 'The pillowcase curtain.' },
-      { id: pre + 'couch', at: [1, 2], examine: night
-          ? [{ narrate: 'The lumpy couch. My bed. The springs have opinions.' }, { think: 'She gets the real bed. That was never a question.' }]
-          : past ? 'The couch. Newer then. Still lumpy.' : 'The couch.' },
-      { id: pre + 'stove', at: [5, 1], examine: night ? 'Two burners. One works, if you jiggle the knob and believe in yourself.' : 'The stove.' },
-      { id: pre + 'sink', at: [6, 1], examine: night ? 'A drip, every four seconds. I used to count them when I couldn\'t sleep.' : 'The sink.' },
-      { id: pre + 'books', at: [7, 6], prop: 'books', solid: false, layer: -1,
-        examine: night
-          ? [{ narrate: 'Nine books, stolen from Columbus the day they cast me out. Waverly has read every one of them until the spines went soft.' }, { think: 'Turning eighteen was supposed to be a magic trick that let you survive overnight. I brought my own magic.' }]
-          : 'Nine books.' },
-      { id: pre + 'bear', at: [8, 5], prop: 'bear',
-        examine: night
-          ? [{ narrate: 'Bartholomew. I got him for her third birthday. His left eye has gone yellow, and fuzz is leaking from the seam near his back again.' }, { think: 'I\'ll patch him tomorrow. Add it to the list.' }, { set: { ch01_sawBear: true } }]
-          : 'Bartholomew.' }
-    );
-    if (night) {
-      m.objects.push(
-        { id: 'fridge', at: [7, 1], prop: 'fridgenote', examine: [{ narrate: 'Nothing but cold air and a slice of rotten bologna.' }, { think: 'And a note from Waverly, stuck to the door. I\'ll read it in a minute.' }] },
+      ext.dark = 0.6; ext.playerLight = 36; ext.tint = '#203050'; ext.tintAlpha = 0.18;
+      ext.patch.fridge = { prop: 'fridgenote', examine: [{ narrate: 'Nothing but cold air and a slice of rotten bologna.' }, { think: 'And a note from Waverly, stuck to the door. I\'ll read it in a minute.' }] };
+      ext.patch.to_street = { locked: '!ch01_readyToGo', lockedText: [{ think: 'Not yet. I can\'t leave her without a note. And without something to eat.' }], toAt: [4, 2], toAtFixed: true, facing: 'down' };
+      ext.objects.push(
         { id: 'cupboard', at: [4, 1], examine: [
-          { if: 'ch01_pbOnTable', then: [{ narrate: 'Empty now.' }], else: [
+          { if: 'ch01_foundPB', then: [{ narrate: 'Empty now.' }], else: [
             { narrate: 'I cross my fingers before opening the cupboard. The sour smell of rot. A forgotten brick of bologna, which goes straight in the trash.' },
             { narrate: 'Behind it: half a jar of peanut butter.' },
             { set: { ch01_foundPB: true } }] }] },
-        { id: 'pbjar', at: [4, 3], prop: 'pbjar', solid: false, layer: 1, if: 'ch01_pbOnTable', examine: 'Half a jar of peanut butter. It\'s not enough. But it\'s something.' }
+        { id: 'pbjar', at: [4, 4], prop: 'pbjar', solid: false, layer: 1, if: 'ch01_pbOnTable' }
       );
-      m.npcs.push({ id: 'waverly', at: [7, 5], facing: 'down', if: 'ch01_waverlyUp' });
-      m.exits.push({ id: 'toStreet', at: [2, 7], to: 'street', toAt: [4, 2], facing: 'down',
-        locked: '!ch01_readyToGo', lockedText: [{ think: 'Not yet. I can\'t leave her without a note. And without something to eat.' }] });
+      ext.npcs.push({ id: 'waverly', at: [8, 3], facing: 'down', if: 'ch01_waverlyUp' });
     } else if (past) {
-      m.npcs.push({ id: 'waverly7', at: [6, 3], spec: 'waverly7', facing: 'left' });
-      m.objects.push({ id: 'crayons', at: [5, 3], prop: 'crayons', solid: false, layer: 1, examine: 'Crayon drawings. A cat. Another cat. A house on a beach with two bedrooms, labelled in careful capitals.' });
+      ext.dark = 0; ext.tint = '#ffb060'; ext.tintAlpha = 0.16; ext.vignette = 0.7; ext.ambient = null;
+      ext.patch.to_street = { locked: true, lockedText: [{ think: 'Not that door. Not in this memory.' }] };
+      ext.npcs.push({ id: 'waverly7', at: [5, 4], spec: 'waverly7', facing: 'left' });
+      ext.objects.push({ id: 'crayons', at: [4, 4], prop: 'crayons', solid: false, layer: 1, examine: 'Crayon drawings. A cat. Another cat. A house on a beach with two bedrooms, labelled in careful capitals.' });
     } else {
-      m.npcs.push({ id: 'home_waverly', at: [4, 5], facing: 'up' });
+      ext.dark = 0.2; ext.tint = '#c0a080'; ext.tintAlpha = 0.12; ext.vignette = 0.6;
+      ext.patch.to_street = { locked: true, lockedText: [{ think: 'No. Couch.' }] };
+      ext.npcs.push({ id: 'home_waverly', spec: 'waverly', at: [8, 3], facing: 'down' });
     }
-    return m;
+    return G.shared.map('luna_apartment', ext);
   }
 
   // The night street (40x12) and its morning copy. Westmost door = our building.
@@ -294,7 +271,7 @@
         api.sound('heartbeat'); await api.shake(500, 2);
         await api.think('Waverly is waiting. She gets anxious when things don\'t go as expected. If she goes for help, I\'ll have a lot of explaining to do.');
       } });
-      m.exits.push({ id: 'toStairs', at: [4, 1], to: 'apt_home', toAt: [2, 6], facing: 'up' });
+      m.exits.push({ id: 'toStairs', at: [4, 1], to: 'apt_home', toAt: [7, 6], facing: 'up' });
     }
     return m;
   }
@@ -525,7 +502,7 @@
           if (!done) {
             var s = slots[sel], n = A26.indexOf(s.L) + 1;
             var help = known[s.L] ? s.L + ' = ' + sevenOf(s.L) + '  (you already know this one)' : s.L + ' is letter ' + n + ' of the alphabet.   ' + n + ' + 7 = ?';
-            R.text(help, ctx.W / 2, py0 + ph + 6, { size: 8, align: 'center', color: '#e8e4d8' });
+            R.rect(ctx.W / 2 - 130, py0 + ph + 3, 260, 14, '#2a2622'); R.text(help, ctx.W / 2, py0 + ph + 6, { size: 8, align: 'center', color: '#e8e4d8', shadow: false });
           }
           // the reference strip: letters Luna knows so far
           var ky = ctx.H - 44, kw = (ctx.W - 40) / 26;
@@ -753,7 +730,7 @@
     title: 'One Day, But Not Today',
     kicker: 'FRIDAY, OCTOBER 12, 2083 • 3:00 A.M.',
     maps: {
-      apt: makeApt('night'), apt_past: makeApt('past'), apt_home: makeApt('home'),
+      luna_apartment: makeApt('night'), apt_past: makeApt('past'), apt_home: makeApt('home'),
       street: makeStreet('night'), street_home: makeStreet('home'),
       alley: makeAlley('night'), alley_dawn: makeAlley('dawn'),
       tunnels: tunnels, clinic: clinic
@@ -779,7 +756,7 @@
 
       /* ============ 1. APARTMENT, 3:00 A.M. ============ */
       await api.slides([{ style: 'black', text: 'Some nights, loving your child means leaving her when it matters most.' }]);
-      await api.goRoom('apt', { at: [7, 2], facing: 'up', fade: true });
+      await api.goRoom('luna_apartment', { at: [5, 2], facing: 'up', fade: true });
       api.sound('door');
       await api.narrate('I stand in the kitchen of our tiny apartment with my head shoved deep into the fridge. Nothing but cold air and a slice of rotten bologna.');
       await api.think('It\'s three a.m. Only an hour until my appointment.');
@@ -791,11 +768,12 @@
       // Waverly wakes
       api.sound('step');
       api.set('ch01_waverlyUp', true);
-      api.addNpc({ id: 'waverly', at: [6, 5], facing: 'up' });
+      api.addNpc({ id: 'waverly', at: [8, 3], facing: 'left' });
       await api.wait(300);
       await api.say('waverly', 'Momma?', { mood: 'tired' });
       api.face('player', 'down');
       await api.move('waverly', [6, 3]);
+      api.face('player', 'right');
       api.face('waverly', 'player');
       await api.narrate('Waverly peeks around the curtain. Her curls stick out like static, fists clenched, eyes too serious for an eleven-year-old girl.');
       await api.say(ME(), 'Come here. You should be asleep.');
@@ -843,7 +821,7 @@
 
       // --- playable flashback: Waverly (7) invents the code ---
       await api.fadeOut(700, '#fff');
-      await api.goRoom('apt_past', { at: [2, 3], facing: 'right' });
+      await api.goRoom('apt_past', { at: [7, 5], facing: 'left' });
       await api.fadeIn(700);
       await api.slides([{ style: 'montage', title: 'Four years ago', text: 'I worked nights then. She hated waking up to an empty room.' }]);
       api.objective('Go to Waverly at the table', { target: 'waverly7' });
@@ -874,7 +852,7 @@
       await api.say('waverly7', 'If Miss Hallaham reads it, she\'ll just think I\'m practising my counting.', { mood: 'smug' });
       await api.think('My genius. Seven years old and already smarter than the whole building.');
       await api.fadeOut(700, '#fff');
-      await api.goRoom('apt', { at: [7, 2], facing: 'up' });
+      await api.goRoom('luna_apartment', { at: [5, 2], facing: 'up' });
       await api.fadeIn(600);
 
       // --- decode BRING TUNA ---
@@ -908,7 +886,7 @@
 
       // tuck her in
       api.objective('Tuck Waverly into bed', { target: 'waverly' });
-      await api.move('waverly', [7, 5]);
+      await api.move('waverly', [8, 3]);
       api.face('waverly', 'up');
       await api.waitForInteract('waverly');
       api.objective(null);
@@ -919,7 +897,7 @@
       await api.say(ME(), 'One day… but not today.', { mood: 'sad' });
       await api.narrate('Here\'s what I would tell anyone who\'s considering having a child: Every time you leave them, it feels like you\'ve left a piece of yourself behind. And you won\'t be whole again until you have them in your arms.');
       await api.fadeIn(900);
-      api.teleport([6, 4], 'up');
+      api.teleport([5, 2], 'up');
 
       /* --- compose the reply on the fridge --- */
       api.objective('Write your reply on the fridge note', { target: 'fridge' });
@@ -932,17 +910,15 @@
       await api.think('I love you. Back soon. Both true. For now.');
 
       api.objective('Leave the peanut butter on the table', { target: 'table' });
-      api.addObject({ id: 'table', at: [5, 3], examine: null });
       await api.waitForInteract('table');
       api.set('ch01_pbOnTable', true);
-      api.addObject({ id: 'pbjar2', at: [5, 3], prop: 'pbjar', solid: false, layer: 1 });
-      api.remove('table');
+      api.addObject({ id: 'pbjar2', at: [4, 4], prop: 'pbjar', solid: false, layer: 1 });
       await api.narrate('I put the jar on the table where she\'ll see it. If Waverly wakes up again before I get back, at least she\'ll have something to eat.');
       await api.narrate('It\'s not enough. But it\'s something.');
       api.set('ch01_readyToGo', true);
 
       /* ============ 3. NIGHT STREET ============ */
-      api.objective('Go out (the door, bottom left)', { target: 'toStreet' });
+      api.objective('Go out (the door, bottom left)', { target: 'to_street' });
       await api.waitForRoom('street');
       api.objective(null);
       await api.narrate('The harsh wind claws at my skin as I rush down the empty street, clutching my threadbare jacket. The city is pitch black, and in the dark, everything transforms.');
@@ -1247,12 +1223,12 @@
       await api.narrate('The stairs slither in and out of view as I haul myself up, clutching the rail. A valve has opened inside me, and all the adrenaline that got me this far is gushing out.');
       await api.minigame('qte', { mode: 'mash', title: 'THREE FLIGHTS', prompt: 'Keep climbing.', target: 22, time: 7, decay: 5 });
       await api.say(ME(), 'Waverly!', { mood: 'tired' });
-      await api.move('player', [2, 3]);
+      await api.move('player', [2, 4]);
       api.face('player', 'left');
       api.sound('hit');
       await api.shake(400, 2);
       await api.narrate('Our lumpy couch has never looked so appealing. I collapse into it.');
-      await api.move('home_waverly', [3, 3], { speed: 70 });
+      await api.move('home_waverly', [3, 4], { speed: 70 });
       api.face('home_waverly', 'player');
       await api.say('home_waverly', 'Momma! I was getting so worried and I tried to do the breathing techniques you taught me but it didn\'t help but I also didn\'t want to bother anyone so I -', { mood: 'cry' });
       await api.say(ME(), 'Waverly.', { mood: 'tired' });
