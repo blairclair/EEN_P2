@@ -588,7 +588,7 @@
       spawns: { from_cage: [5, 4] },
       marks: { stage_center: [15, 4], stage_front: [15, 6], gallows: [20, 4], cage: [4, 4], wing_left: [5, 4], wing_right: [26, 4], host: [12, 5], judge: [18, 6],
         security_1: [10, 8], security_2: [13, 8], security_3: [18, 8], security_4: [21, 8], families_box: [4, 10], vip_box: [27, 11], aisle: [15, 15],
-        prisoners_row: [10, 19], crowd_front: [9, 12], vendor: [15, 18] }
+        prisoners_row: [15, 19], crowd_front: [15, 12], vendor: [15, 18] }
     }));
   })();
 
@@ -679,7 +679,7 @@
       ],
       exits: [iExit('to_columbus_lounge', [8, 11], [1, 1], 'columbus_lounge', [3, 2], 'down')],
       spawns: { from_columbus_lounge: [8, 10] },
-      marks: { bunk_luna: [2, 3], bunk_salina: [4, 3], android: [8, 6], tv: [8, 2], door: [8, 10] }
+      marks: { bunk_luna: [3, 3], bunk_salina: [3, 4], android: [8, 6], tv: [8, 2], door: [8, 10] }
     }));
 
     var l = new Grid(14, 10, 'o');
@@ -766,7 +766,7 @@
       ],
       exits: [xExit('to_street', [7, 7], [1, 1], 'street', 'from_luna_apartment', 'down')],
       spawns: { from_street: [7, 6] },
-      marks: { couch: [1, 3], beside_couch: [2, 4], waverly_bed: [8, 2], waverly_corner: [7, 3], fridge: [5, 2], kitchen: [4, 2], door: [7, 6], window: [7, 1] }
+      marks: { couch: [2, 3], beside_couch: [2, 4], waverly_bed: [7, 2], waverly_corner: [7, 3], fridge: [5, 2], kitchen: [4, 2], door: [7, 6], window: [7, 1] }
     }));
   })();
 
