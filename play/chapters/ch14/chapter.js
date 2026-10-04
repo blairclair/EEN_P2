@@ -34,8 +34,9 @@
  *          m_isaiah (small +/- in the game, -20 floor 20 at the fallout),
  *          m_audience
  * LOCAL FLAGS: ch14_*
- * SHARED MAPS: house_doll_room, house_luna_room (placeholder fallback while the
- *   shared rooms don't exist; positions are fitted onto the shared layout).
+ * SHARED MAPS: house_doll_room (marks chair_1/5/6, center, judge_throne, trader_stand,
+ *   door; patches samantha/window_rain; extras.judgeThrone), house_luna_room (marks
+ *   center, door, window_spot; extras.falsvilleBook). Box fallbacks reuse the shared ids.
  * ========================================================================= */
 (function () {
   'use strict';
@@ -81,79 +82,28 @@
   /* ---------------------------------------------------------------------
    * MAPS
    * ------------------------------------------------------------------- */
-  // Placeholder Doll Room 16x12 (CHAPTERS §3: dolls floor to ceiling, Samantha
-  // on the north wall, rain window, throne, chairs in a triangle, console).
-  var DOLL_TILES = [
-    'XXXXXXXXXXXXXRRX',
-    'X..............X',
-    'X..............X',
-    'X..............X',
-    'X......c.......X',
-    'X..............X',
-    'X..............X',
-    'X....c...c.....X',
-    'X..............X',
-    'X.ccc..........X',
-    'X..............X',
-    'XXXXXXXDXXXXXXXX'
-  ];
+  /* Staging positions come from the shared rooms' marks (G.shared.data.marks);
+   * the fallbacks are the shared rooms' own coordinates. (constraint: fallback
+   * maps reuse the SHARED entity ids so autoplay targets survive either way) */
+  var MK = (G.shared && G.shared.data && G.shared.data.marks) || {};
+  function mk(map, name, fb) { var m = MK[map] && MK[map][name]; return m ? [m[0], m[1]] : fb; }
   var DOLL_POS = {
-    seatA: [7, 4], seatL: [5, 7], seatI: [9, 7], console: [7, 6], screen: [7, 2],
-    samantha: [7, 1], kneelL: [6, 1], kneelR: [8, 1], throne: [10, 1], judge: [10, 2],
-    ginerva: [12, 3], trader: [13, 5], door: [7, 10], window: [13, 1], shelfW: [1, 4], shelfE: [14, 8],
-    mouse: [4, 7], dog: [10, 7], frog: [7, 3], cart: [11, 6],
-    win1: [2, 9], win2: [3, 9], win3: [4, 9]
+    seatA: mk(H.doll, 'chair_1', [7, 3]), seatL: mk(H.doll, 'chair_6', [6, 9]), seatI: mk(H.doll, 'chair_5', [10, 9]),
+    console: mk(H.doll, 'center', [8, 6]), screen: [8, 2], samantha: mk(H.doll, 'samantha', [8, 1]),
+    throne: mk(H.doll, 'judge_throne', [11, 1]), judge: [12, 2], ginerva: [13, 3],
+    trader: mk(H.doll, 'trader_stand', [8, 10]), door: mk(H.doll, 'door', [3, 12]),
+    mouse: [5, 10], dog: [11, 10], frog: [6, 2], cart: [14, 5],
+    win1: [13, 10], win2: [14, 10], win3: [15, 10]
   };
-  var LUNA_TILES = [
-    'XXXWWXXX',
-    'X....bbX',
-    'X....bbX',
-    'X......X',
-    'X......T',
-    'Xd.....X',
-    'X......X',
-    'XXXDXXXX'
-  ];
-  var LUNA_POS = { bed: [5, 1], window: [3, 1], desk: [1, 5], tablet: [6, 4], nightstand: [4, 1], door: [3, 6], cam: [6, 1], plate: [2, 5], arrive: [3, 5], ginerva: [3, 5] };
+  var LUNA_POS = { arrive: mk(H.luna, 'center', [4, 5]), door: mk(H.luna, 'door', [4, 8]), window: mk(H.luna, 'window_spot', [4, 1]), plate: [2, 7] };
 
-  var PH = { doll: { w: 16, h: 12 }, luna: { w: 8, h: 8 } };
-
-  /** Fit placeholder positions onto a shared layout: scale, then nearest free floor tile. */
-  function fitPositions(def, want, ph) {
-    var room;
-    try { room = G.Map.build(def); } catch (e) { return want; }
-    var used = {}, out = {};
-    (def.npcs || []).concat(def.objects || []).forEach(function (e) { if (e.at) used[e.at[0] + ',' + e.at[1]] = 1; });
-    (def.exits || []).forEach(function (e) { if (e.at) used[e.at[0] + ',' + e.at[1]] = 1; });
-    Object.keys(want).forEach(function (k) {
-      var w = want[k];
-      var tx = Math.round(w[0] * (room.w - 1) / (ph.w - 1)), ty = Math.round(w[1] * (room.h - 1) / (ph.h - 1));
-      var best = null;
-      for (var r = 0; r < 8 && !best; r++) {
-        for (var dy = -r; dy <= r && !best; dy++) for (var dx = -r; dx <= r && !best; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          var x = tx + dx, y = ty + dy;
-          if (x < 1 || y < 1 || x >= room.w - 1 || y >= room.h - 1) continue;
-          if (G.Map.solidAt(room, x, y) || used[x + ',' + y]) continue;
-          best = [x, y];
-        }
-      }
-      best = best || [Math.max(1, Math.min(room.w - 2, tx)), Math.max(1, Math.min(room.h - 2, ty))];
-      used[best[0] + ',' + best[1]] = 1;
-      out[k] = best;
-    });
-    return out;
+  /** Minimal box room used only if a shared room is missing (same ids/coords as the shared room). */
+  function boxTiles(w, h, door) {
+    var rows = [];
+    for (var y = 0; y < h; y++) { var r = ''; for (var x = 0; x < w; x++) r += (y === 0 || y === h - 1 || x === 0 || x === w - 1) ? '#' : '.'; rows.push(r); }
+    rows[door[1]] = rows[door[1]].slice(0, door[0]) + 'D' + rows[door[1]].slice(door[0] + 1);
+    return rows;
   }
-
-  var shelfDraw = function (g, x, y) {
-    g.fillStyle = '#3a2418'; g.fillRect(x + 1, y - 6, 14, 20);
-    var cols = ['#e8c8c0', '#f0d8b0', '#d8b8c8'];
-    for (var i = 0; i < 3; i++) {
-      g.fillStyle = cols[i]; g.fillRect(x + 2 + i * 5, y - 4, 3, 4); g.fillRect(x + 2 + i * 5, y + 4, 3, 4);
-      g.fillStyle = '#8a0a14'; g.fillRect(x + 3 + i * 5, y - 2, 1, 2); g.fillRect(x + 3 + i * 5, y + 6, 1, 2);
-    }
-    g.fillStyle = '#2a180e'; g.fillRect(x + 1, y + 2, 14, 1); g.fillRect(x + 1, y + 10, 14, 1);
-  };
   var screenDraw = function (g, x, y, t) {
     var m = ST.screen, c = m === 'truth' ? '#1fae4a' : m === 'lie' ? '#d8202c' : '#203040';
     g.fillStyle = '#0a0c12'; g.fillRect(x - 16, y - 4, 48, 15);
@@ -184,13 +134,18 @@
   };
 
   /* --- Doll Room content (talk handlers for the pre-competition free roam) --- */
+  var SAMANTHA_EXAMINE = [{ think: 'Samantha. Blood-red palm-leaf hair, icy blue eyes, a gavel in her fist. She\'s the room\'s camera.' }, { think: 'Delphin loved that doll. I think? Sometimes it was hard to tell when he was joking.' }];
+  var WINDOW_EXAMINE = [{ think: 'Rain on the window over the parking lot. It\'s always raining in this room.' }];
   function dollExt(P) {
+    var X = (G.shared && G.shared.data.upstairs && G.shared.data.upstairs.extras) || {};
+    var throne = X.judgeThrone ? Object.assign({}, X.judgeThrone, { examine: [{ think: 'A jeweled throne beside Samantha. Since the checkers game it has belonged to the Judge.' }] })
+      : { id: 'judge_throne', at: P.throne, prop: 'up_throne', solid: true, layer: 1, examine: [{ think: 'A jeweled throne beside Samantha.' }] };
     return {
       name: 'The Doll Room',
       ambient: 'tension',
       tint: '#3a0a14', tintAlpha: 0.12,
       npcs: [
-        { id: 'ch14_isaiah', spec: 'isaiah', at: P.seatI, facing: 'left', talk: async function (api) {
+        { id: 'ch14_isaiah', spec: 'isaiah', at: P.seatI, facing: 'up', talk: async function (api) {
           if (api.get('f_isaiah_reconciled', true)) {
             await api.say('isaiah', 'They took the Joe photo off my nightstand this morning. "Distracting." I counted the seconds it took me to stop shaking. Forty.', { mood: 'sad' });
             await api.say('luna', 'Whatever they throw at us today, we answer it together.');
@@ -222,32 +177,30 @@
         { id: 'ch14_win3', spec: LOTTO.lotto_woman, at: P.win3, facing: 'up', visible: false, talk: [['ch14_win3', 'Don\'t smile at me.', 'angry']] }
       ],
       objects: [
-        { id: 'ch14_seat', at: P.seatL, solid: false, draw: function (g, x, y) { g.fillStyle = '#4a4e58'; g.fillRect(x + 3, y + 3, 10, 9); g.fillStyle = '#6a707a'; g.fillRect(x + 3, y + 3, 10, 2); g.fillStyle = '#c84a2a'; g.fillRect(x + 12, y + 4, 2, 1); } },
+        throne,
         { id: 'ch14_console', at: P.console, draw: consoleDraw, examine: [{ think: 'A console with three bundles of wire running out of it, one to each chair. A red light blinks. A green one waits.' }] },
         { id: 'ch14_screen', at: P.screen, solid: false, layer: 1, draw: screenDraw, examine: [{ think: 'A holoscreen. Blank, for now. It hums like it\'s thinking.' }] },
-        { id: 'ch14_cart', at: P.cart, draw: cartDraw, examine: [{ think: 'A cart full of wires. Is it my imagination, or did one of them just spark?' }] },
-        { id: 'ch14_samantha', at: P.samantha, prop: 'samantha', examine: [{ think: 'Samantha. Blood-red palm-leaf hair, icy blue eyes, a gavel in her fist. She\'s the room\'s camera.' }, { think: 'Delphin loved that doll. I think? Sometimes it was hard to tell when he was joking.' }] },
-        { id: 'ch14_kneelL', at: P.kneelL, prop: 'doll_kneel', examine: 'Two kneeling True Believer dolls flank Samantha, heads bowed.' },
-        { id: 'ch14_kneelR', at: P.kneelR, prop: 'doll_kneel', examine: 'The kneeling doll\'s painted mask has been chipped by a thumbnail. Someone in here once got bored enough to try.' },
-        { id: 'ch14_shelfW', at: P.shelfW, draw: shelfDraw, examine: [{ think: 'Floor-to-ceiling dolls. Red streaks trailing from hollow eyes. Rictus grins.' }] },
-        { id: 'ch14_shelfE', at: P.shelfE, draw: shelfDraw, examine: [{ think: 'It\'s sauna-hot in here and the dolls are sweating paint. Or I am.' }] },
-        { id: 'ch14_window', at: P.window, solid: false, layer: 1, draw: function () {}, examine: [{ think: 'Rain on the window over the parking lot. It\'s always raining in this room.' }] },
-        { id: 'ch14_throne', at: P.throne, prop: 'doll', examine: [{ think: 'A jeweled throne beside Samantha. Since the checkers game it has belonged to the Judge.' }] },
-        { id: 'ch14_doorobj', at: P.door, solid: false, examine: [{ think: 'The door. Mouse has been watching it since I walked in. Watching me near it.' }] }
-      ]
+        { id: 'ch14_cart', at: P.cart, draw: cartDraw, examine: [{ think: 'A cart full of wires. Is it my imagination, or did one of them just spark?' }] }
+      ],
+      patch: {
+        samantha: { examine: SAMANTHA_EXAMINE },
+        window_rain: { examine: WINDOW_EXAMINE },
+        chair_6: { examine: [{ think: 'My chair. Wires already taped to the backrest.' }] },
+        tb_statue_right: { examine: 'The kneeling statue\'s painted mask has been chipped by a thumbnail. Someone in here once got bored enough to try.' }
+      }
     };
   }
   function buildDoll() {
-    var P = DOLL_POS, m;
-    if (G.shared && G.shared.has(H.doll)) {
-      P = fitPositions(G.shared.maps[H.doll], DOLL_POS, PH.doll);
-      m = G.shared.map(H.doll, dollExt(P));
-    } else {
-      m = dollExt(P);
-      m.tiles = DOLL_TILES;
-      m.legend = { X: 'h_doll_wall', R: 'h_window_rain', '.': 'h_parquet', c: 'h_folding_chair', D: 'h_door' };
-      m.spawn = [7, 10];
-      m.placeholder = true;
+    var P = DOLL_POS, ext = dollExt(P), m;
+    if (G.shared && G.shared.has(H.doll)) m = G.shared.map(H.doll, ext);
+    else {
+      m = ext; delete m.patch;
+      m.tiles = boxTiles(18, 14, [3, 13]); m.spawn = P.door; m.placeholder = true;
+      m.objects = m.objects.concat([
+        { id: 'samantha', at: [8, 0], prop: 'samantha', examine: SAMANTHA_EXAMINE },
+        { id: 'window_rain', at: [2, 0], examine: WINDOW_EXAMINE }
+      ]);
+      [[7, 3], [10, 3], [12, 5], [12, 7], [10, 9], [6, 9], [4, 7], [4, 5]].forEach(function (c, i) { m.objects.push({ id: 'chair_' + (i + 1), at: c, prop: 'h_folding_chair', solid: false }); });
     }
     m.ch14Pos = P;
     return m;
@@ -255,31 +208,29 @@
 
   /* --- Luna's room (confinement) --- */
   function lunaExt(P) {
+    var X = (G.shared && G.shared.data.upstairs && G.shared.data.upstairs.extras) || {};
+    var book = Object.assign({ id: 'falsville_book', at: [6, 1], prop: 'up_book', layer: 1 }, X.falsvilleBook || {});
     return {
       name: 'Room No. 3 (locked)',
       ambient: 'hum', dark: 0.25, playerLight: 50,
-      objects: [
-        { id: 'ch14_bed', at: P.bed, draw: function () {}, examine: async function (api) { api.set('ch14_bedTried', true); await api.think('The silk sheets are too cold. They always are.'); } },
-        { id: 'ch14_window2', at: P.window, solid: false, layer: 1, draw: function () {}, examine: [{ think: 'The garden. Pink almond blossoms in January. Somewhere past the fence is a road, and somewhere past the road is Waverly.' }] },
-        { id: 'ch14_tablet', at: P.tablet, draw: function (g, x, y, t) { g.fillStyle = '#0a0c12'; g.fillRect(x + 2, y + 1, 12, 10); g.fillStyle = (Math.floor(t * 2) % 2) ? '#3a5a8a' : '#2a3a6a'; g.fillRect(x + 3, y + 2, 10, 8); g.fillStyle = '#c4462a'; g.fillRect(x + 7, y + 4, 2, 3); } },
-        { id: 'ch14_book', at: P.nightstand, prop: 'falsville' },
-        { id: 'ch14_plate', at: P.plate, solid: false, draw: plateDraw },
-        { id: 'ch14_ldoor', at: P.door, solid: false, draw: function () {} },
-        { id: 'ch14_eye', at: P.cam, solid: false, layer: 1, prop: 'cam_eye', examine: [{ think: 'The smoke detector. "Eye". It never blinks.' }] }
-      ]
+      remove: ['booklet'],
+      objects: [book, { id: 'ch14_plate', at: P.plate, solid: false, layer: 1, draw: plateDraw }],
+      patch: {
+        window: { examine: [{ think: 'The garden. Pink almond blossoms in January. Somewhere past the fence is a road, and somewhere past the road is Waverly.' }] },
+        smoke_detector: { examine: [{ think: 'The smoke detector. "Eye". It never blinks.' }] }
+      }
     };
   }
   function buildLuna() {
-    var P = LUNA_POS, m;
-    if (G.shared && G.shared.has(H.luna)) {
-      P = fitPositions(G.shared.maps[H.luna], LUNA_POS, PH.luna);
-      m = G.shared.map(H.luna, lunaExt(P));
-    } else {
-      m = lunaExt(P);
-      m.tiles = LUNA_TILES;
-      m.legend = { X: 'h_wall', W: 'h_window_garden', '.': 'h_parquet', b: 'h_bed_queen', d: 'h_desk', T: 'h_tablet_wall', D: 'h_door_num' };
-      m.spawn = LUNA_POS.arrive;
-      m.placeholder = true;
+    var P = LUNA_POS, ext = lunaExt(P), m;
+    if (G.shared && G.shared.has(H.luna)) m = G.shared.map(H.luna, ext);
+    else {
+      m = ext; delete m.patch; delete m.remove;
+      m.tiles = boxTiles(10, 10, [4, 9]); m.spawn = P.arrive; m.placeholder = true;
+      m.objects = m.objects.concat([
+        { id: 'window', at: [4, 0], examine: [{ think: 'Sealed.' }] }, { id: 'bed', at: [7, 2], prop: 'h_bed_queen' },
+        { id: 'tablet', at: [2, 0], solid: false }, { id: 'desk', at: [1, 7] }
+      ]);
     }
     m.ch14Pos = P;
     return m;
@@ -475,7 +426,6 @@
     api.log('[ch14] m_trader_insight +1 (' + why + ') = ' + v);
   }
   function addIsaiah(api, d) { api.set('m_isaiah', Math.max(0, Math.min(100, api.get('m_isaiah', 30) + d))); }
-  function seatPositions(api) { var P = api.data.dollPos; return P; }
 
   /** Run a scored round: compute under the rules, show the overlay, commit. */
   async function scored(api, n, asker, ans, question, answer, truth, guesses, note) {
@@ -619,8 +569,8 @@
       await api.goRoom(H.doll, { at: DP.door, facing: 'up' });
       await api.narrate('Everyone\'s favorite creepy doll room. Chairs in a triangle, wires running from each one to a console. It feels so empty now that there are only three of us left.');
       await api.think('Samantha\'s huge blown-up face looms over all of it. Delphin loved that doll. I think.');
-      api.objective('Take your seat. (Look around first, if you dare.)', { target: 'ch14_seat' });
-      await api.waitForInteract('ch14_seat', { objective: 'Take your seat. (Look around first, if you dare.)' });
+      api.objective('Take your seat. (Look around first, if you dare.)', { target: 'chair_6' });
+      await api.waitForInteract('chair_6', { objective: 'Take your seat. (Look around first, if you dare.)' });
       api.objective(null);
       api.lockPlayer();
       api.teleport(seat, 'up');
@@ -957,27 +907,26 @@
         await a.narrate('One sausage, a spoon of grey beans, half a slice of bread. Luna eats every crumb.');
         await a.think('I\'ve gone hungry before so Waverly could eat. This is nothing. This is nothing.');
       });
-      api.onInteract('ch14_tablet', async function (a) {
+      api.onInteract('tablet', async function (a) {
         await a.think('The wall tablet won\'t turn off. It used to show "curated memories" of Waverly. Today it shows something else.');
         await a.tv([{ speaker: 'franchesca_show', headline: 'THE LAST LIGHT - ON LOOP', text: 'Powerful. Winning will do that.', tag: 'REPLAY' }, { speaker: 'trader_young', headline: 'THE LAST LIGHT - ON LOOP', text: 'You won. You hear me? You won.', tag: 'REPLAY' }]);
         await a.think('Over and over. The win, the wrist, the speech. And then the tape cuts, and starts again.');
         a.set('ch14_sawTablet', true);
       });
-      api.onInteract('ch14_book', async function (a) {
+      api.onInteract('falsville_book', async function (a) {
         await a.think('The Falsville book Trader brought. "Your daughter mailed this." Inside the cover, Waverly\'s slip of numbers.');
         var dec = a.get('f_note3_decoded', false);
         await a.note({ title: 'Inside the cover', text: '27-12-19-19 / 15-16-20 / 26-15-12 / 19-22-29-12-11 / 15-16-20' + (dec ? '\n\nTELL HIM SHE LOVED HIM' : '') });
         await a.think(dec ? 'Tell him she loved him. "The women in her family. They make you love them." Waverly, how did you know?' : 'I never worked it out. Seven Code. A is eight. Later. When I can think.');
       });
-      api.onInteract('ch14_ldoor', [{ think: 'Locked. I try the handle anyway. Twice.' }]);
-      api.onInteract('ch14_bed', async function (a) {
+      api.onInteract('bed', async function (a) {
         var d = a.get('ch14_day', 1);
         if (d === 1) {
           var cc = await a.choice([{ text: 'Lie down. Let the day end.' }, { text: 'Not yet.' }]);
           if (cc === 0) a.set('ch14_slept1', true);
         } else await a.think('The silk is too cold. It always is.');
       });
-      await api.until(function (f) { return f.ch14_slept1; }, { objective: 'Pass the day. (The bed ends it.)', targets: ['ch14_tablet', 'ch14_book', 'ch14_plate', 'ch14_bed'] });
+      await api.until(function (f) { return f.ch14_slept1; }, { objective: 'Pass the day. (The bed ends it.)', targets: ['tablet', 'falsville_book', 'ch14_plate', 'bed'] });
       api.objective(null);
       api.lockPlayer();
       await api.narrate('The days flow into each other like a pond into a river. Isaiah\'s face. Waverly\'s twig-like arms. Over and over.');
@@ -1031,7 +980,7 @@
       await api.fadeOut(900);
       api.set('ch14_day', 3);
       await api.slides([{ style: 'black', title: 'Thursday, 8 February', text: 'Tomorrow, the final private vote. Millions of people will tune in to find out who makes the final two.' }]);
-      api.teleport(LP.window ? [LP.window[0], LP.window[1] + 1] : LP.arrive, 'up');
+      api.teleport(LP.window, 'up');
       await api.fadeIn(700);
       await api.think('The garden under the window, silver in the floodlights. The fence. The road beyond it.');
       await api.think('If it reads what we believe, then Annette only believes the tape. Then I don\'t know what happened to my mother. Not yet.');

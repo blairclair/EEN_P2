@@ -355,7 +355,7 @@
       { id: 'mats_sign', at: [5, 5], examine: [{ narrate: 'Branded blood-absorbent mats under every cot. "SOAK IT UP."' }] }
     ]
   }, {
-    marks: { door: { p: [8, 3], sm: 'door', exact: true }, bedside: { p: [4, 2], sm: 'cot_2', exact: true }, medic: { p: [7, 3], sm: 'medic', exact: true } },
+    marks: { door: { p: [8, 3], sm: 'door', exact: true }, bedside: { p: [4, 2], sm: 'cot_2', exact: true }, medic: { p: [7, 4], sm: 'medic', exact: true } },
     npcs: [
       { id: 'delphin', at: [3, 2], sm: 'cot_2_bed', spec: 'delphin', facing: 'down', if: '!ch12_delphinGone', talk: function (api) { return delphinTalk(api); } },
       { id: 'medic', at: [7, 2], sm: 'cot_3', spec: 'medic', facing: 'left', if: '!ch12_medicOut', talk: function (api) { return medicTalk(api); } }
@@ -1087,15 +1087,13 @@
 
   async function bopSamantha(api) {
     var n = api.add('ch12_bops', 1);
-    var o = G.World.find('samantha');
+    // (constraint: the shared Samantha prop has no rocking frame, so the bop lands as sound + camera shake)
     if (n === 1) {
-      if (o) o.bob = 2;
+      api.sound('blip'); await api.shake(250, 1);
       await api.narrate('For reasons I could not articulate, I reach out and bop Samantha on the head. She bobs back and forth like she is rocking herself.');
-      await api.wait(500); if (o) o.bob = 0;
     } else if (n === 2) {
-      if (o) o.bob = 4;
+      api.sound('blip'); await api.shake(300, 2);
       await api.narrate('I chuckle and do it again. Then again, harder.');
-      await api.wait(400); if (o) o.bob = 0;
     } else {
       api.sound('hit'); await api.shake(350, 3);
       await api.narrate('Samantha shoots forward, her head slamming against the floor before popping back up.');
@@ -1202,6 +1200,23 @@
 
     start: async function (api) {
       registerSounds();
+      // [!slides/titleCards shown after api.fadeOut were invisible <- UI.draw paints the fade ABOVE every overlay]
+      // (fix: lift the fade while an opaque full-screen card is up, restore it after)
+      ['slides', 'titleCard'].forEach(function (fn) {
+        var orig = api[fn];
+        api[fn] = async function () {
+          var fx = G.UI.fx, was = fx.fade;
+          fx.fade = 0;
+          try { return await orig.apply(api, arguments); } finally { if (was > 0 && fx.fade === 0 && !fx.tween) fx.fade = was; }
+        };
+      });
+      // [!choice({prompt:'string'}) drew an empty dialogue box <- Dialogue.choose reads prompt.text/kind]
+      // (fix: turn string prompts into a narration line object)
+      var origChoice = api.choice;
+      api.choice = function (opts, o) {
+        if (o && typeof o.prompt === 'string') { o = Object.assign({}, o, { prompt: { kind: 'think', text: o.prompt } }); }
+        return origChoice.call(api, opts, o);
+      };
       await partWake(api);
       await partInfirmary(api);
       await partFlashback(api);
@@ -1491,10 +1506,9 @@
     await api.waitForInteract('ch12_car');
     api.objective(null);
     await api.say('norman', 'Remember to keep your arms and legs inside the vehicle and enjoy your ride. Screaming is encouraged, as is waving your arms.', { mood: 'happy' });
-    await api.fadeOut(400);
+    // (constraint: no fadeOut before a minigame: the fade layer draws above the minigame overlay and blacks it out)
     var r = await api.minigame('coaster', {});
     api.set('ch12_coasterLeans', r.hits || 0);
-    await api.fadeIn(400);
     await api.narrate('I\'ll never forget it. The way joy turned to terror and then tragedy in the span of ten seconds.');
     await api.narrate('The last picture of my parents, arm in arm, floated out of my pocket on the drop and caught in the spokes. Ripped to shreds, right in front of me.');
     await api.think('It was like someone told me I could have the world, then laughed at me for believing him.');
@@ -1598,7 +1612,7 @@
     await api.say('delphin', 'You\'re a pain in the ass, you know that?', { mood: 'tired' });
     await api.say('luna', 'Yeah. Now let the nurse do his job before I stitch you up myself.', { mood: 'happy' });
     api.set('ch12_medicOut', false);
-    api.addNpc({ id: 'medic', at: mk(ROOM.infirmary, 'door', [8, 3]), spec: 'medic', facing: 'left' });
+    api.addNpc({ id: 'medic', at: mk(ROOM.infirmary, 'medic', [7, 4]), spec: 'medic', facing: 'left' });
     await api.say('medic', 'Nineteen minutes. I was getting attached to the rock.', { mood: 'smug' });
   }
 
@@ -1698,7 +1712,7 @@
       api.set('f_luxury_used', true);
       api.set('ch12_luxuryNight', true);
       api.sound('success');
-      await api.screen ? api.slides([{ style: 'screen', title: 'NIGHTLY RANKING', text: '#1  LUNA BARTLEY\n\nTonight you sleep in the Luxury Room.' }]) : null;
+      await api.slides([{ style: 'screen', title: 'NIGHTLY RANKING', text: '#1  LUNA BARTLEY\n\nTonight you sleep in the Luxury Room.' }]);
       await api.think('Number one. The audience likes the mother who tells stories. Fine. Let them.');
       api.objective('Go to the Luxury Room (east end of the bedroom hall)');
       await api.waitForRoom(ROOM.luxury);

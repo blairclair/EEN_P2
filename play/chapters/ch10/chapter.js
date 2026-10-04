@@ -304,7 +304,8 @@
   var JUDGE_AT = [CUFF[0], LINE[0][1] - 1];             // between the pyre and the line
   var TRADER_CORNER = [1, LINE[0][1] - 1];
   var K_AT = [CUFF[0] - 1, CUFF[1]], E_AT = [CUFF[0] + 1, CUFF[1]];
-  var RING_GAP = [CUFF[0], CUFF[1] + 2];                // closed with the last logs once they're hung
+  var RING_GAP = [CUFF[0], CUFF[1] + 2];                // the ring's south gap (shared pyre leaves it open)
+  var DRAIN_AT = [CUFF[0] + 4, CUFF[1] + 1];            // drain moved out of the gap
   var before = function (i) { return [LINE[i][0], LINE[i][1] - 1]; };
   // Pyre: the shared extras (wood ring + gas cans), or the same layout here.
   function pyre() {
@@ -326,8 +327,9 @@
     var fires = [];
     if (burning) py.forEach(function (o, i) { if (/^wood/.test(o.id)) fires.push({ id: 'ch10_fire' + i, at: o.at, prop: 'ch10:fire', solid: false, layer: 1 }); });
     var objs = py.concat(fires);
-    objs.push({ id: 'ch10_drain', at: [9, 6], prop: 'ch10:drain', solid: false, layer: -1, examine: [{ think: 'A drain in the floor. Why would a room need a drain.' }, { think: 'I know why.' }, REDLOOK] });
-    if (burning) { objs.push({ id: 'ch10_logsgap', at: RING_GAP, prop: 'ch10:logs', solid: true }); objs.push({ id: 'ch10_firegap', at: RING_GAP, prop: 'ch10:fire', solid: false, layer: 1 }); }
+    // the ring is closed from the start, so nobody (the player included) can walk in among the cuffs
+    objs.push({ id: 'ch10_logsgap', at: RING_GAP, prop: 'ch10:logs', solid: true, examine: burning ? null : [{ think: 'The ring of wood is closed. Inside it, three pairs of cuffs hang from chains, silver flecked with rust. Even the shackles match the room.' }, { think: 'No way in. No way out, either, for whoever ends up in the middle.' }, REDLOOK] });
+    if (burning) objs.push({ id: 'ch10_firegap', at: RING_GAP, prop: 'ch10:fire', solid: false, layer: 1 });
     var npcs = [
       { id: 'isaiah', spec: 'isaiah_pj', at: LINE[0], facing: 'up', talk: async function (api) {
           await api.say('isaiah', 'Did you know the colour red raises your heart rate? There are studies. I wish I didn\'t know that.', { mood: 'fear' });
@@ -356,8 +358,9 @@
       dark: burning ? 0.62 : 0.3, playerLight: burning ? 0 : 30,
       tint: burning ? '#ff3010' : '#ff0010', tintAlpha: burning ? 0.14 : 0.08,
       lights: burning ? [{ at: K_AT, r: 70, flicker: true }, { at: E_AT, r: 70, flicker: true }, { at: CUFF, r: 50, flicker: true }] : [],
-      remove: ['drain'].concat(burning ? ['to_service_stair'] : []),
+      remove: burning ? ['drain', 'to_service_stair'] : [],
       patch: burning ? {} : {
+        drain: { at: DRAIN_AT, examine: [{ think: 'A drain in the floor. Why would a room need a drain.' }, { think: 'I know why.' }, REDLOOK] },
         cuffs_1: { examine: [{ think: 'Three pairs of cuffs, silver, flecked with rust that gives them a reddish tint. Even the shackles match the room.' }, REDLOOK] },
         cuffs_2: { examine: [{ think: 'Three pairs. Someone counted us. Then someone counted again.' }, REDLOOK] },
         cuffs_3: { examine: [{ think: 'The rust is not all rust.' }, REDLOOK] },
@@ -552,27 +555,6 @@
     }
   };
 
-  /**
-   * Typing guard for the cipher. The engine maps W/A/S/D to directions, so in the cipher a typed
-   * "D" also moves the selection and an "S" also cycles the guess. While a cipher is open, this
-   * window capture-phase listener swallows those four keys and re-dispatches them as plain typed
-   * letters (code 'ch10Typed', which no action is mapped to). Installed only during Note 2.
-   */
-  function typingGuard() {
-    if (typeof window === 'undefined' || G.auto) return function () {};
-    var CODES = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1 };
-    function onKey(e) {
-      if (!CODES[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
-      e.stopImmediatePropagation(); e.preventDefault();
-      if (e.type === 'keydown' && !e.repeat) {
-        try { window.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: 'ch10Typed' })); } catch (err) { /* ignore */ }
-      }
-    }
-    window.addEventListener('keydown', onKey, true);
-    window.addEventListener('keyup', onKey, true);
-    return function () { window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKey, true); };
-  }
-
   /* ---------------------------------------------------------------------
    * Helpers
    * ------------------------------------------------------------------- */
@@ -643,9 +625,9 @@
       await api.think('Blood-red walls send spiders crawling through my chest. The ceiling is chartreuse. I can\'t look at it. I\'m going to be sick.');
       await api.think('Three pairs of cuffs hang from the ceiling. Around them, a ring of firewood.');
       api.set('ch10_examined', 0);
-      await api.until(function (f) { return (f.ch10_examined || 0) >= 1 && (f.ch10_redLooked || 0) >= 1; }, {
+      await api.until(function (f) { return (f.ch10_examined || 0) + (f.ch10_redLooked || 0) >= 2; }, {
         objective: 'Wait. (Look around; talk to the others)',
-        targets: ['cuffs_1', 'isaiah']
+        targets: ['ch10_logsgap', 'isaiah']
       });
       api.objective(null);
 
@@ -806,14 +788,13 @@
       api.placeNpc('elephant', E_AT, 'down'); api.show('elephant');
       api.show('tb_dog'); api.show('tb_turtle');
       api.placeNpc('ginerva', GIN_POST, 'down');
-      api.addObject({ id: 'ch10_logsgap', at: RING_GAP, prop: 'ch10:logs', solid: true });
       await api.fadeIn(500);
       await api.narrate('Dog and Turtle drag them in. Elephant, still in her robe and mask, holds her head high in her chains. Kessie is in nothing but a slip.');
       await api.think('Both eyes blackened. Her lip split. Her arms… I don\'t look away. I don\'t let myself look away.');
       if (api.get('m_kessie', 25) >= 45) await api.narrate('As they pull her past, Kessie reaches out a hand toward you. Her fingers brush your sleeve.');
       else await api.narrate('As they pull her past, Kessie reaches out a hand toward you. It falls short.');
       await api.think('This is the hand of the woman I consigned to death. There is no sugarcoating it.');
-      await api.narrate('They lock her wrists into the cuffs and haul the chains until her feet dangle above the floor. Then Elephant. Then they close the ring of wood.');
+      await api.narrate('They lock her wrists into the cuffs and haul the chains until her feet dangle above the floor. Then Elephant. Then they stack the last logs tight against the ring.');
       await api.say('judge', 'This is what happens to those who oppose me. Do keep that in mind next time you are feeling belligerent.', { name: 'Judge Johnson' });
       await api.move('judge', before(1), { speed: 40 }); api.face('judge', 'up');
       await api.say('judge', 'And you, Believer. Let them see what kind of face hides under the gold.', { name: 'Judge Johnson', mood: 'smug' });
@@ -950,9 +931,7 @@
         };
         if (hints >= 1) params.hint = hintText[Math.min(hints, 3)];
         if (hints >= 2) params.given = ['A'];
-        var unguard = typingGuard();
-        var res;
-        try { res = await api.minigame('cipher', params); } finally { unguard(); }
+        var res = await api.minigame('cipher', params);
         if (res && res.success) { solved = true; break; }
         // Gave up (TAB). Offer help, one step at a time, or let her sleep on it.
         var opts = [];

@@ -1560,7 +1560,7 @@
     await api.run([['trader', 'One more question, the reason we\'re here. Who are you voting for, and why?']]);
     var opts = VOTE_OPTS.map(function (o) { return o.text; });
     opts.splice(1, 0, { text: 'Delphin', if: function () { return false; } });
-    var vi = await api.choice(opts, { showDisabled: true, autoPick: 0 });
+    var vi = await api.choice(opts, { showDisabled: true });
     var pick = vi === 0 ? VOTE_OPTS[0] : VOTE_OPTS[vi - 1];
     api.set('ch05_lunaVote', pick.id);
     await api.think('Not Delphin. Whatever he did eighteen years ago, I won\'t hand him a death sentence over a grudge.');

@@ -101,7 +101,7 @@
         ['npcs', 'objects', 'zones'].forEach(function (k) {
           if (!e[k]) return;
           e[k] = e[k].filter(function (o) { return !o.placeholderOnly; }).map(function (o) {
-            var c = G.cloneDef(o); if (c.at) c.at = nearestFree(solid, c.at); return c;
+            var c = G.cloneDef(o); if (c.at && !c.wall) c.at = nearestFree(solid, c.at); return c;
           });
         });
       }
@@ -724,8 +724,8 @@
   MAPS[R.screening] = useMap(R.screening, screeningFb, {
     dark: 0.5,
     npcs: [
-      { id: 'ch08_trader_sr', at: [3, 3], spec: 'trader', facing: 'down' },
-      { id: 'ch08_camop', at: [6, 5], spec: 'cameraman', facing: 'left', turn: false }
+      { id: 'ch08_trader_sr', at: [4, 2], spec: 'trader', facing: 'down' },
+      { id: 'ch08_camop', at: [7, 4], spec: 'cameraman', facing: 'left', turn: false }
     ],
     objects: [{ id: 'ch08_sr_screen', at: [5, 1], prop: 'screen', placeholderOnly: true, solid: false, layer: -1 }],
     lockExits: { to_bedroom_hall: { locked: ALWAYS, lockedText: [{ think: 'He hasn\'t dismissed me. Leaving now would be a headline.' }] } }
@@ -794,15 +794,17 @@
   MAPS[R.annette] = useMap(R.annette, annetteFb, {
     dark: 0.3,
     objects: [
-      { id: 'ch08_an_bed', at: [6, 2], examine: 'Annette\'s quilt. Hand-stitched. Every square a different storm.' },
-      { id: 'ch08_an_croc1', at: [1, 1], prop: 'crochet', color: '#c890d8', examine: 'A crocheted rabbit with button eyes. One ear longer than the other.' },
-      { id: 'ch08_an_croc2', at: [1, 5], prop: 'crochet', color: '#90c8a0', examine: 'A crocheted frog. A crocheted hat. A crocheted hat on a crocheted frog.' },
-      { id: 'ch08_an_croc3', at: [5, 6], prop: 'crochet', color: '#e8b070', examine: 'A little lion, mid-roar. The stitches are tight. Perfect.' },
-      { id: 'ch08_an_storm', at: [2, 0], prop: 'painting', kind: 'storm', examine: 'A painting of a storm over a field. Good. Really good.' },
-      { id: 'ch08_an_pony', at: [5, 0], prop: 'painting', kind: 'pony', examine: 'A pony in a meadow, painted with real tenderness.' },
-      { id: 'ch08_an_rocker', at: [1, 3], prop: 'rocker', examine: 'A rocking chair with a lavender cushion. It\'s still rocking, very slightly.' },
-      { id: 'ch08_an_yarn', at: [4, 1], prop: 'yarn', examine: 'Yarn and knitting needles. The needles are long, and very sharp.' }
+      { id: 'ch08_an_bed', at: [6, 2], placeholderOnly: true, examine: 'Annette\'s quilt. Hand-stitched. Every square a different storm.' },
+      { id: 'ch08_an_duck', at: [8, 4], prop: 'crochet', color: '#e0c060', examine: 'A crocheted duck sitting on the rug, as if it fell off the bed. Annette\'s quilt beside it: every square a different storm.' },
+      { id: 'ch08_an_croc1', at: [1, 3], prop: 'crochet', color: '#c890d8', examine: 'A crocheted rabbit with button eyes. One ear longer than the other.' },
+      { id: 'ch08_an_croc2', at: [8, 5], prop: 'crochet', color: '#90c8a0', examine: 'A crocheted frog. A crocheted hat. A crocheted hat on a crocheted frog.' },
+      { id: 'ch08_an_croc3', at: [5, 7], prop: 'crochet', color: '#e8b070', examine: 'A little lion, mid-roar. The stitches are tight. Perfect.' },
+      { id: 'ch08_an_storm', at: [2, 0], wall: true, prop: 'painting', kind: 'storm', examine: 'A painting of a storm over a field. Good. Really good.' },
+      { id: 'ch08_an_pony', at: [8, 0], wall: true, prop: 'painting', kind: 'pony', examine: 'A pony in a meadow, painted with real tenderness.' },
+      { id: 'ch08_an_rocker', at: [7, 7], prop: 'rocker', examine: 'A rocking chair with a lavender cushion. It\'s still rocking, very slightly.' },
+      { id: 'ch08_an_yarn', at: [3, 5], prop: 'yarn', placeholderOnly: true, examine: 'Yarn and knitting needles. The needles are long, and very sharp.' }
     ],
+    patch: { knitting: { examine: 'Yarn and knitting needles. The needles are long, and very sharp.' } },
     lockExits: { to_bedroom_hall: { locked: ALWAYS, lockedText: [{ think: 'She said to wait. It would be rude to leave.' }] } }
   }, true);
 
@@ -1255,8 +1257,8 @@
       await api.say(K, 'You deserve answers. I\'ve been meaning to talk to you for a bit anyways. I\'ve just been putting it off.', { mood: 'sad' });
     } else {
       await api.say(K, 'It\'s late, honey. We\'ll talk another time. I promise.', { mood: 'tired' });
-      for (;;) {
-        var t = await api.choice(['"Tell me, or I tell Trader you\'re cheating. Him and the whole country."', '"Please. I need to know."']);
+      for (var pleas = 0; ; pleas++) {
+        var t = await api.choice(['"Tell me, or I tell Trader you\'re cheating. Him and the whole country."', { text: '"Please. I need to know."', if: function () { return pleas < 1; } }]);
         if (t === 0) { api.add('m_kessie', -5); api.set('ch08_threatened', true); await api.say(K, '...You would, too. You\'re so much like her when you set your jaw like that.', { mood: 'sad' }); break; }
         await api.say(K, 'Another time.', { mood: 'sad' });
         await api.think('She\'s going to walk out that door. Unless I make it cost her more to leave than to stay.');
@@ -1346,8 +1348,8 @@
     player().speed = 72;
     api.set('ch08_running', false);
     await api.fadeOut(500);
-    await api.goRoom(R.annette, { at: [5, 2], facing: 'left', stayDark: true });
-    api.addNpc({ id: 'ch08_annette_r', at: [4, 3], spec: 'annette', facing: 'right' });
+    await api.goRoom(R.annette, { at: [5, 4], facing: 'left', stayDark: true });
+    api.addNpc({ id: 'ch08_annette_r', at: [4, 4], spec: 'annette', facing: 'right' });
     await api.fadeIn(600);
     api.ambient('hum');
     await api.narrate('She settles me on her bed and wraps me in a blanket.');
@@ -1357,13 +1359,14 @@
     api.hide('ch08_annette_r');
     api.sound('door');
     await api.think('The first time I\'ve been in another contestant\'s room. Same bones as mine. But she\'s made it hers.');
-    api.objective('Look around. Sit back down on the bed when you\'re ready.', { target: 'ch08_an_bed' });
-    await api.waitForInteract('ch08_an_bed');
+    var bedId = hasShared(R.annette) ? 'bed' : 'ch08_an_bed';
+    api.objective('Look around. Sit back down on the bed when you\'re ready.', { target: bedId });
+    await api.waitForInteract(bedId);
     api.objective(null);
     await api.think('So this is what Annette does with her spare time. Well. We all need a way to cope.');
     api.sound('door');
     api.show('ch08_annette_r');
-    await api.move('ch08_annette_r', [4, 2]);
+    await api.move('ch08_annette_r', [4, 4]);
     api.face('ch08_annette_r', 'player');
     await api.narrate('She comes back with two steaming mugs and hands me one. It warms my palms.');
     var d = await api.choice(['(Drink.)', '(Just hold it.)']);

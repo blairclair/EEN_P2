@@ -38,10 +38,10 @@
  * Local flags: ch13_*
  *
  * SHARED ROOMS (keyed by shared id): house_doll_room, house_gym_courtroom,
- * execution_amphitheatre, house_screening_room*, house_library,
- * house_bedroom_hall, house_luna_room, house_delphin_room*, house_foyer,
- * house_red_hall, house_supply_closet.  (* minimal fallback when the shared
- * room is missing; NPC positions snap to the nearest walkable tile.)
+ * execution_amphitheatre, house_screening_room, house_library,
+ * house_bedroom_hall, house_luna_room, house_delphin_room, house_foyer,
+ * house_red_hall, house_supply_closet. Amphitheatre/screening NPC tiles snap
+ * to the nearest walkable tile as a guard against later layout edits.
  * ========================================================================= */
 (function () {
   'use strict';
@@ -98,53 +98,10 @@
   /* Holoscreen state for the courtroom (read by the shared holoscreen prop). */
   var HOLO = { on: false, l: 0, r: 0 };
 
-  /* ---------------------------------------------------------------------
-   * MINIMAL FALLBACK ROOMS (only when the shared room is missing)
-   * ------------------------------------------------------------------- */
-  var FALLBACK = {};
-  FALLBACK[H.screen] = {
-    name: 'Screening Room (placeholder)', ambient: 'hum', dark: 0.45, tint: '#101830', tintAlpha: 0.15,
-    tiles: [
-      '####EEEE####',
-      '#..........#',
-      '#.cccccccc.#',
-      '#..........#',
-      '#.cccccccc.#',
-      '#..........#',
-      '#####D######'
-    ],
-    spawn: [5, 5], spawns: { from_bedroom_hall: [5, 5] }, marks: {},
-    lights: [{ at: [5, 1], r: 60 }],
-    objects: [{ id: 'ch13_scr_cam', at: [10, 1], prop: 'camera', examine: [{ think: 'A camera, aimed at our faces instead of the screen.' }] }],
-    exits: [{ id: 'to_bedroom_hall', at: [5, 6], to: H.bedhall, toAt: [30, 1], facing: 'down' }]
-  };
-  FALLBACK[H.delphinRoom] = {
-    name: "Delphin's Room (placeholder)", ambient: 'hum', dark: 0.55, playerLight: 40,
-    tiles: [
-      '###D####',
-      '#......#',
-      '#.dd..b#',
-      '#.....b#',
-      '#k.....#',
-      '########'
-    ],
-    spawn: [3, 1], spawns: { from_bedroom_hall: [3, 1] }, marks: {},
-    lights: [{ at: [3, 2], r: 36 }],
-    objects: [],
-    exits: [{ id: 'to_bedroom_hall', at: [3, 0], to: H.bedhall, toAt: [21, 4], facing: 'up' }]
-  };
-
-  /** A house/off-site room: the shared map extended with ch13 content, or the fallback. */
+  /** A shared house/off-site room extended with ch13 content (every ch13 room is shared now). */
   function room(name, ext) {
-    ext = ext || {};
-    if (has(name)) return G.shared.map(name, ext);
-    var f = FALLBACK[name];
-    if (!f) { G.reportError && G.reportError(new Error('ch13: shared room missing and no fallback: ' + name), 'ch13'); f = FALLBACK[H.screen]; }
-    var m = G.cloneDef(f);
-    ['npcs', 'objects', 'zones', 'exits', 'lights'].forEach(function (k) { if (ext[k]) m[k] = (m[k] || []).concat(ext[k]); });
-    Object.keys(ext).forEach(function (k) { if (['npcs', 'objects', 'zones', 'exits', 'lights', 'remove', 'patch'].indexOf(k) < 0) m[k] = ext[k]; });
-    m.placeholder = true;
-    return m;
+    if (!has(name)) throw new Error('ch13: shared room missing: ' + name);
+    return G.shared.map(name, ext || {});
   }
 
   /* ---------------------------------------------------------------------
@@ -315,7 +272,7 @@
           api.remove('ch13_eyeliner');
         } }]
     });
-    dr.objects.forEach(function (o) { if (o.id === 'ch13_eyeliner' && !dr.placeholder) o.at = mark(H.delphinRoom, 'desk', [2, 2]); });   // on the floor by his desk: stand on it to pick it up
+    dr.objects.forEach(function (o) { if (o.id === 'ch13_eyeliner') o.at = mark(H.delphinRoom, 'desk', [2, 2]); });   // on the floor by his desk: stand on it to pick it up
     maps[H.delphinRoom] = dr;
 
     gateExits(maps);
@@ -774,8 +731,7 @@
   /* ---------------- 4. The screening room ---------------- */
   async function sceneScreening(api) {
     api.set('ch13_phase', 'screening');
-    var scr = G.lookup('maps', H.screen) || {};
-    var at = has(H.screen) ? mark(H.screen, 'seat_2', [3, 3]) : [6, 2];
+    var at = mark(H.screen, 'seat_2', [3, 3]);
     await api.goRoom(H.screen, { at: at, facing: 'up', fade: false });
     api.lockPlayer();
     await api.fadeIn(900);
@@ -896,14 +852,16 @@
     var lines = [];
     // line 1
     for (;;) {
-      var a = await api.choice(['"I KNOW WHAT YOU DID."', '"DOES DADDY STILL HOLD YOUR LEASH?"', '"HELP ME GET OUT."'], { prompt: 'First line:', autoPick: 1 });
+      var a = await api.choice([{ text: '"I KNOW WHAT YOU DID."', if: '!ch13_l1a' }, '"DOES DADDY STILL HOLD YOUR LEASH?"', { text: '"HELP ME GET OUT."', if: '!ch13_l1c' }], { prompt: 'First line:', autoPick: 1 });
+      if (a !== 1) api.set(a === 0 ? 'ch13_l1a' : 'ch13_l1c', true);   // a rejected line is crossed out (not offered again)
       if (a === 1) { lines.push('DOES DADDY STILL HOLD YOUR LEASH?'); break; }
       await api.think(a === 0 ? 'Too vague. He has done so many things, he wouldn\'t know which one to be scared of.' : 'No. He\'d hand it to his father before the ink dried. He has to feel it, not pity me.');
     }
     if (api.get('f_note2_decoded', true)) {
       await api.think('Grandma is Trader\'s weak point. Waverly worked that out from a phone. I can use it.');
       for (;;) {
-        var b = await api.choice(['"YOUR MOTHER WOULD CRY."', '"SHE WOULD BE ASHAMED OF YOU."'], { prompt: 'Second line:', autoPick: 1 });
+        var b = await api.choice([{ text: '"YOUR MOTHER WOULD CRY."', if: '!ch13_l2a' }, '"SHE WOULD BE ASHAMED OF YOU."'], { prompt: 'Second line:', autoPick: 1 });
+        if (b === 0) api.set('ch13_l2a', true);
         if (b === 1) { lines.push('SHE WOULD BE ASHAMED OF YOU.'); break; }
         await api.think('Not his mother. Mine. He knew her. I don\'t know how, but he did. "She" is enough. He\'ll know who.');
       }

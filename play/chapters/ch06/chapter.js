@@ -386,7 +386,7 @@
     await api.slides([{ style: 'black', text: '', draw: drawMemo }]);
     api.setPlayer('john');
     await api.goRoom(ROOM.amph, { at: MK.cage, facing: 'right', fade: true });
-    api.lockPlayer();
+    lock(api);
     await api.narrate('The execution chamber is enormous. A former amphitheatre, its vaulted ceilings so high that no creature but a bird could reach the top on its own.');
     await api.pan(MK.crowd, 1400);
     await api.narrate('Cameras fill the bottom three rows, pointing from every angle. Only the top three rows are left for human beings. Kites and balloons are taped up wherever the decorator gave up on order.');
@@ -399,11 +399,11 @@
     api.lowerThird(null);
     await api.narrate('So many people in one space. More than John has ever seen at once. All there for him. After all those years of bullying and neglect, he can\'t believe this many people are interested in anything he does.');
     await api.narrate('Even if that thing is his death.');
-    api.unlockPlayer();
+    unlock(api);
 
     await api.waitForZone('mark', { objective: 'Walk to the mark' });
     api.objective(null);
-    api.lockPlayer();
+    lock(api);
     api.teleport(MK.stage, 'down');
     await api.narrate('He\'s parked at the centre of the stage, next to the noose. John wonders if it will hurt. He wonders if anyone would care if it does.');
 
@@ -514,7 +514,7 @@
     api.setPlayer('luna');
     await api.goRoom(ROOM.screening, { at: MK.screenSeat, facing: 'up', fade: false });
     await api.fadeIn(900);
-    api.lockPlayer();
+    lock(api);
     await api.narrate('The screen freezes on the final frame. John, slack on the white sheets like a discarded doll. No blood. No spectacle. Just the silence after something irreversible.');
     await api.think('I don\'t realise I\'m shaking until my fingers slip from where they\'re clenched against my side.');
     api.sound('camera');
@@ -558,7 +558,7 @@
     api.onAir(false);
     api.approval(false);
     api.set('ch06_interviewDone', true);
-    api.unlockPlayer();
+    unlock(api);
     await api.think('The red dot stays on. Always recording. Always watching.');
     await api.waitForRoom(ROOM.lounge, { objective: 'Go down to the lounge' });
     api.objective(null);
@@ -568,9 +568,9 @@
    * PART 3: Lounge
    * ------------------------------------------------------------------- */
   async function partLounge(api) {
-    api.lockPlayer();
+    lock(api);
     await api.narrate('Everyone is here, and nobody is talking. The cameraman stays in the corner, kneeling for reaction shots.');
-    api.unlockPlayer();
+    unlock(api);
 
     api.onInteract('kessie', async function (api) {
       if (api.has('ch06_talkKessie')) { await api.say('kessie', 'I\'m alright. I\'m alright. Go see to the others.', { mood: 'sad' }); return; }
@@ -629,7 +629,7 @@
       objective: 'Check on the others', targets: ['kessie', 'isaiah', 'carol']
     });
     api.objective(null);
-    api.lockPlayer();
+    lock(api);
 
     // Trader breaks
     await api.pan('trader', 600);
@@ -668,7 +668,7 @@
       await api.think('I\'m so tired. I want to lie down, rest my head on that soft pillow, and dream of Waverly.');
     }
     api.set('ch06_loungeDone', true);
-    api.unlockPlayer();
+    unlock(api);
     await api.waitForRoom(ROOM.hall, { objective: 'Go up to bed before lockdown' });
     api.objective(null);
   }
@@ -676,6 +676,10 @@
   /* ---------------------------------------------------------------------
    * PART 4: the drunk Trader
    * ------------------------------------------------------------------- */
+  // api.lockPlayer() is a COUNTER that survives room changes; scenes here lock/unlock across
+  // goRoom and nested parts, so use an idempotent lock and a full release instead.
+  function lock(api) { if (!G.World.lockMove) api.lockPlayer(); }
+  function unlock(api) { for (var i = 0; i < 20 && G.World.lockMove > 0; i++) api.unlockPlayer(); }
   function freeTile(api, list) {
     var me = api.playerTile();
     for (var i = 0; i < list.length; i++) if (list[i][0] !== me.x || list[i][1] !== me.y) return list[i];
@@ -683,13 +687,13 @@
   }
   function timed(api, opts, ms, fallback) { return api.choice(opts, { timer: ms, timeoutPick: fallback }); }
   async function partHall(api) {
-    api.lockPlayer();
+    lock(api);
     await api.slides([{ style: 'screen', text: 'LOCKDOWN 23:00\nTIME REMAINING: 00:14:12\nRETURN TO ROOM 3' }]);
     await api.think('The hallways are dark at night. Spooky. I want to spend as little time in them as possible.');
-    api.unlockPlayer();
+    unlock(api);
     await api.waitForZone('ambush', { objective: 'Get to Room 3' });
     api.objective(null);
-    api.lockPlayer();
+    lock(api);
     var me = api.playerTile();
     api.sound('hit');
     await api.shake(300, 2);
@@ -757,7 +761,7 @@
 
     // back
     await api.goRoom(ROOM.hall, { at: [me.x, 1], facing: 'down', fade: false });
-    api.lockPlayer();
+    lock(api);
     api.show('delphin'); api.show('trader');
     api.placeNpc('delphin', [me.x + 1, 2], 'left'); api.placeNpc('trader', [me.x + 3, 3], 'left');
     api.face('delphin', 'player');
@@ -776,7 +780,7 @@
     await api.say('delphin', 'Then walk. Stairwell\'s audio only. Running gets you noticed, walking doesn\'t.', { mood: 'smug' });
     await api.move('delphin', MK.hallStair, { speed: 60 });
     api.hide('delphin');
-    api.unlockPlayer();
+    unlock(api);
     await api.waitForRoom(ROOM.library, { objective: 'Meet Delphin in the library' });
     api.objective(null);
   }
@@ -793,7 +797,7 @@
     await api.fadeIn(900);
     await api.think('I\'m eight. The room is full of bunk beds and nobody is sleeping. Everybody is looking at the screen.');
     await api.waitForInteract('dorm_tv', { objective: 'Watch the screen' });
-    api.lockPlayer();
+    lock(api);
     await api.tv([
       { speaker: 'franchesca_show', headline: 'Rebellion Special', text: 'A woman in a grey jumpsuit under hard white lights. Red hair. My hair. My mother.' },
       { speaker: 'franchesca_show', mood: 'neutral', headline: 'Rebellion Special', text: 'A voice behind her, distorted, screaming: "Traitor. Harlot!"' },
@@ -803,7 +807,7 @@
     await api.think('Every face in the room turns to me.');
     api.sound('static');
     await api.fadeOut(600, '#ffffff');
-    api.unlockPlayer();
+    unlock(api);
     api.setPlayer('luna');
   }
 
@@ -811,12 +815,12 @@
    * PART 6: the alliance
    * ------------------------------------------------------------------- */
   async function partLibrary(api) {
-    api.lockPlayer();
+    lock(api);
     await api.narrate('The library is dark. Lamps off but the one in the nook, turned down to an ember. The brightest thing in the room is the vibrant blue of Delphin\'s hair.');
     await api.think('The nook. The one place the spine-camera can\'t see. Of course he knows it. He taught me to find places like this.');
-    api.unlockPlayer();
+    unlock(api);
     await api.waitForInteract('delphin', { objective: 'Talk to Delphin in the reading nook' });
-    api.lockPlayer();
+    lock(api);
     api.face('delphin', 'player');
     var bloc = api.get('f_refused_vote_bloc', true);
     await api.say('luna', 'What do you want, Delphin? I\'m too tired to play games.');

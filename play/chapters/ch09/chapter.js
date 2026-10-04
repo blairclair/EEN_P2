@@ -501,8 +501,8 @@
           // what she has heard so far
           var heard = spoken.join(' ');
           R.text('Waverly hears:', 18, 102, { size: 7, color: '#6a5a4a', shadow: false });
-          R.wrap ? R.wrap(heard || '…', 18, 112, 238, { size: 8, color: '#2a2420', shadow: false, font: 'hand' })
-                 : R.text(heard.slice(-60) || '…', 18, 112, { size: 8, color: '#2a2420', shadow: false });
+          var hl = R.wrap(heard || '…', 236, 8, 'serif', 'italic').slice(-2);   // R.wrap returns lines; it does not draw
+          hl.forEach(function (ln, li) { R.text(ln, 18, 110 + li * 9, { size: 8, color: '#2a2420', shadow: false, font: 'serif', style: 'italic' }); });
           // key strip
           var kx = 14, ky = 160, kw = 246 / 26;
           R.rect(10, ky - 4, 254, 24, '#d8cdb0');
@@ -524,15 +524,15 @@
             R.text(k, cx + bw / 2, cy + 8, { size: k.length > 1 ? 7 : 11, align: 'center', color: on ? '#1a1408' : '#e8e4d8', shadow: false, font: 'sans' });
           });
           if (flash > 0) {
-            R.rect(18, 128, 238, 14, '#7a1218', Math.min(1, flash));
-            R.text(flashMsg, 137, 131, { size: 7, align: 'center', color: '#fff', alpha: Math.min(1, flash), shadow: false });
+            R.rect(18, 130, 238, 13, '#7a1218', Math.min(1, flash));
+            R.text(flashMsg, 137, 132, { size: 7, align: 'center', color: '#fff', alpha: Math.min(1, flash), shadow: false });
           }
           if (done) {
             var a = Math.min(1, (t - doneT) * 3);
             R.rect(ctx.W / 2 - 70, ctx.H / 2 - 12, 140, 24, '#1a3a22', 0.9 * a);
             R.text('SHE HEARD YOU', ctx.W / 2, ctx.H / 2 - 6, { size: 12, font: 'sans', align: 'center', color: '#8aff9a', alpha: a });
           }
-          ctx.footer('Type digits or pick keys, ENTER / SAY to speak a number   [TAB] give up');
+          ctx.footer('Type digits   ENTER = say it   [TAB] give up');
         });
       });
     }
