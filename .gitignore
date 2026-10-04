@@ -1,0 +1,12 @@
+.DS_Store
+.errata/
+.claude/
+.codex/
+.cursor/
+.source-text/
+node_modules/
+play/test/artifacts/
+
+# keep the novel source and canon notes local (repo is public)
+game/
+canon/

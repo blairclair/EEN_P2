@@ -1,0 +1,13 @@
+{
+  "name": "een-play",
+  "version": "1.0.0",
+  "private": true,
+  "description": "2D top-down narrative game engine (runs from file://, no build step)",
+  "scripts": {
+    "smoke": "node test/smoke.js",
+    "new-chapter": "node tools/new-chapter.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

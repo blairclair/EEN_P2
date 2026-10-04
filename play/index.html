@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loading…</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; height: 100%; }
+  canvas#game { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+  noscript { color: #ccc; font: 14px monospace; position: absolute; top: 40%; width: 100%; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<noscript>This game needs JavaScript.</noscript>
+<!-- Engine (classic scripts, one global namespace: window.G). Order matters. -->
+<script src="engine/core.js"></script>
+<script src="engine/render.js"></script>
+<script src="engine/input.js"></script>
+<script src="engine/audio.js"></script>
+<script src="engine/sprites.js"></script>
+<script src="engine/map.js"></script>
+<script src="engine/world.js"></script>
+<script src="engine/ui.js"></script>
+<script src="engine/dialogue.js"></script>
+<script src="engine/script.js"></script>
+<script src="engine/minigames.js"></script>
+<script src="engine/save.js"></script>
+<script src="engine/menus.js"></script>
+<script src="engine/game.js"></script>
+<!-- Chapter list, then the loader appends every chapter's scripts and boots. -->
+<script src="chapters/manifest.js"></script>
+<script src="engine/loader.js"></script>
+</body>
+</html>
