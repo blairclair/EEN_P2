@@ -28,8 +28,23 @@
   I.listeners = [];
   I.lastPress = {};     // action -> performance.now() of last (non-repeat) press     // fn(e) called on every keydown (audio unlock etc)
 
+  /**
+   * TEXT MODE (I.setTextMode(true)): letter keys are text, not actions. W/A/S/D/E/M stop
+   * mapping to up/left/down/right/ok/mute; arrows, Enter, Space, Esc, Backspace, Tab still work.
+   * Used by minigames that read I.typed (cipher). Always reset when a minigame ends.
+   */
+  I.textMode = false;
+  var LETTER_ACTIONS = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, KeyE: 1, KeyM: 1 };
+  function act(code) { return I.textMode && LETTER_ACTIONS[code] ? undefined : MAP[code]; }
+  I.setTextMode = function (on) {
+    I.textMode = !!on;
+    // drop actions currently held only through letter keys
+    ['up', 'down', 'left', 'right', 'ok', 'mute'].forEach(function (a) {
+      I.held[a] = Object.keys(MAP).some(function (k) { return MAP[k] === a && I.keysHeld[k] && act(k) === a; });
+    });
+  };
   function onDown(e) {
-    var a = MAP[e.code];
+    var a = act(e.code);
     if (a || e.code === 'Tab') e.preventDefault();
     I.lastInputTime = performance.now();
     I.keysHeld[e.code] = true;
@@ -43,11 +58,11 @@
     I.listeners.forEach(function (fn) { try { fn(e); } catch (err) { /* ignore */ } });
   }
   function onUp(e) {
-    var a = MAP[e.code];
+    var a = act(e.code);
     I.keysHeld[e.code] = false;
     if (a) {
       // only release the action if no other key mapped to it is held
-      var still = Object.keys(MAP).some(function (k) { return MAP[k] === a && I.keysHeld[k]; });
+      var still = Object.keys(MAP).some(function (k) { return act(k) === a && I.keysHeld[k]; });
       if (!still) I.held[a] = false;
     }
   }

@@ -60,9 +60,10 @@
     ov.draw = function (t) { if (cbs.draw) cbs.draw(t); };
     G.UI.push(ov);
     var p;
+    ctx.textMode = function (on) { G.Input.setTextMode(on !== false); };
     try { p = Promise.resolve(def.start(ctx)); } catch (e) { p = Promise.reject(e); }
-    return p.then(function (res) { G.UI.remove(ov); G.Input.consume(); return res || { success: true }; },
-      function (e) { G.UI.remove(ov); G.reportError(e, 'minigame ' + id); return { success: false, error: String(e) }; });
+    return p.then(function (res) { G.Input.setTextMode(false); G.UI.remove(ov); G.Input.consume(); return res || { success: true }; },
+      function (e) { G.Input.setTextMode(false); G.UI.remove(ov); G.reportError(e, 'minigame ' + id); return { success: false, error: String(e) }; });
   };
 
   /* =====================================================================
@@ -149,6 +150,7 @@
     autoSolve: function (p) { p = cipherPrep(p); return { success: true, solved: true, attempts: 1, time: 0, message: String(p.message || '').toUpperCase() }; },
     start: function (ctx) {
       var p = cipherPrep(ctx.params);
+      ctx.textMode(true); // letters are text: WASD/E/M must not navigate
       var cells = cipherTokens(p);
       var uniq = [];
       var answer = {};
