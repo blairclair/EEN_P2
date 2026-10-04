@@ -253,7 +253,9 @@
       else if (d.again !== undefined && S.counts[e.id] > 1) h = d.again;
       else h = d.talk !== undefined ? d.talk : d.examine !== undefined ? d.examine : d.run !== undefined ? d.run : d.onInteract;
     }
+    var lockBefore = W.lockMove;
     return S.runHandler(h, e, api).catch(function (err) { G.reportError(err, 'interact ' + e.id); }).then(function () {
+      releaseLeak(lockBefore, 'interact ' + e.id, sess);
       finish();
       W.resolveWaiters('interacted', e.id, e);
     });
@@ -270,8 +272,16 @@
     var h = d.run || d.onEnter || d.talk || d.examine;
     if (!h) return Promise.resolve();
     if (hadWaiter && d.waiterOnly) return Promise.resolve();
-    return block(S.runHandler(h, z)).catch(function (err) { G.reportError(err, 'zone ' + z.id); });
+    var lockBefore = W.lockMove, sess = G.Game.session;
+    return block(S.runHandler(h, z)).catch(function (err) { G.reportError(err, 'zone ' + z.id); }).then(function () { releaseLeak(lockBefore, 'zone ' + z.id, sess); });
   };
+  /** A talk/examine/zone handler that locked the player and returned without unlocking would freeze the game. */
+  function releaseLeak(before, where, sess) {
+    if (before <= 0 && W.lockMove > 0 && G.Game.session === sess && sess && sess.alive) {
+      W.lockMove = 0;
+      G.warn('released player lock left by ' + where + ' (call api.unlockPlayer() at the end of the handler)');
+    }
+  }
   S.zonesFired = {};
 
   S.useExit = function (e) {
@@ -611,8 +621,12 @@
     });
     api.setSpec = function (id, spec) { var a = actor(id); if (a) a.spec = spec; };
     api.setPlayer = function (spec) { W.player.spec = spec; };
-    api.lockPlayer = function () { W.lockMove++; };
-    api.unlockPlayer = function () { W.lockMove = Math.max(0, W.lockMove - 1); };
+    /** Freeze player movement until api.unlockPlayer(). Idempotent: repeated locks need one unlock.
+     *  Persists across goRoom (cutscenes); cleared at every chapter start. */
+    api.lockPlayer = function () { if (live()) W.lockMove = 1; };
+    /** Release the movement lock. ({all:true} accepted for clarity; every unlock releases fully.) */
+    api.unlockPlayer = function () { W.lockMove = 0; };
+    api.isPlayerLocked = function () { return W.lockMove > 0; };
     api.playerTile = function () { return W.playerTile(); };
 
     /* ----- camera ----- */

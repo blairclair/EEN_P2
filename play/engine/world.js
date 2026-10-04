@@ -20,7 +20,7 @@
   W.waiters = [];        // {type, id, resolve}
   W.player = { x: 0, y: 0, dir: 'down', frame: 0, animT: 0, moving: false, spec: 'luna', visible: true, speed: 72 };
   W.cam = { x: 0, y: 0, follow: null, pan: null, shakeT: 0, shakeMag: 0, ox: 0, oy: 0 };
-  W.lockMove = 0;        // >0 = player cannot move (cutscene)
+  W.lockMove = 0;        // 1 = player cannot move (api.lockPlayer); idempotent flag, reset every chapter start
   W.lastTile = null;
   W.zoneInside = {};
 
@@ -408,6 +408,9 @@
   };
   W.isInteractable = function (e) {
     var d = e.def;
+    // api.onInteract(id, handler) overrides: a handler makes it interactable, null disables it
+    var ov = G.Script.overrides;
+    if (ov && Object.prototype.hasOwnProperty.call(ov, e.id)) return ov[e.id] != null;
     if (d.talk || d.examine || d.run || d.onInteract) return true;
     return W.waiters.some(function (w) { return w.type === 'interact' && w.id === e.id; });
   };

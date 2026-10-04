@@ -344,7 +344,7 @@ never resolve (they are abandoned silently).
 | `await api.waitForRoom('stage')` | until the player arrives in that room (via exits) |
 | `await api.until(fn, {objective, target, targets:[..], autoplay})` | until `fn(flags, api)` is true (checked every frame) |
 | `api.objective('Find Waverly', {target:'waverly'})` | HUD objective + autoplay instruction. `targets:[...]` = visit each in order; `autoplay: async api => {...}` = custom. `api.objective(null)` clears |
-| `api.onInteract(id, handler)` | replace an entity's handler at runtime |
+| `api.onInteract(id, handler)` | replace an entity's handler at runtime. A handler makes the entity interactable even if its def has no talk/examine (marker + E work); `null` makes it non-interactable |
 | `const k = await api.waitKey(['ok','KeyF'], {block:true, autoKey})` | edge-triggered wait for a key (action names or KeyboardEvent codes/keys); never misses a press. Autoplay resolves at once with `autoKey` or the first key. In polling loops use `G.Input.pressedSince(action, t)` with `t = G.Input.now()` |
 
 ### Entities & camera
@@ -358,7 +358,7 @@ never resolve (they are abandoned silently).
 | `api.face('kessie', 'left' \| 'player' \| otherId)` / `api.face('player', 'kessie')` | |
 | `await api.emote('kessie', '!', 900)` | |
 | `api.setPlayer(spec)` / `api.setSpec(id, spec)` | change sprite (cast id or inline spec) |
-| `api.lockPlayer()` / `api.unlockPlayer()` | lock movement between non-blocking calls |
+| `api.lockPlayer()` / `api.unlockPlayer()` / `api.isPlayerLocked()` | lock movement between non-blocking calls. **Idempotent** (a flag, not a counter): any number of locks is released by ONE unlock. The lock persists across `goRoom` (cutscenes) and is cleared at every chapter start. If a talk/examine/zone handler locks and returns without unlocking, the engine releases it and logs a warning |
 | `api.playerTile()` | `{x, y}` |
 | `await api.pan([x,y] \| 'npcId', ms)` / `await api.cameraReset(ms)` / `api.follow(id\|null)` | camera |
 
@@ -654,3 +654,6 @@ Changes after the API freeze. All are backwards compatible.
   - Fixed: a string choice prompt (`{prompt:'Question?'}`) rendered an empty box; it now renders as narration. Added the question-first form `api.choice('Question?', options, opts)` and `prompt:{speaker, text, mood}` (reported by ch12).
 - **2026-10-04 (i)**
   - Fixed: wall-mounted cameras were blind in the `stealth` minigame. The vision cone and line of sight stopped at the camera's own solid wall tile, so no cone was drawn and nothing was detected (affected every shared-room camera). Rays now ignore the origin tile. Added `G.Map.lineOfSight` and `G.Map.rayLength` for chapter-side detection. Existing workarounds that move a camera one tile down still work (no double offset): the camera then just sees from the floor tile in front of the wall.
+- **2026-10-04 (j)**
+  - Fixed: entities whose behaviour came only from `api.onInteract(id, fn)` were not interactable by keyboard (no marker, E did nothing), because `W.isInteractable` only checked the def. Autoplay hid this. Overrides now count, and `onInteract(id, null)` disables (reported by ch06).
+  - Changed (bug fix): `api.lockPlayer()` is idempotent (a flag, not a counter), so nested or unbalanced locks no longer leave the player frozen; one `api.unlockPlayer()` always releases. The lock still persists across `goRoom` and is reset at every chapter start. Locks leaked by talk/examine/zone handlers are released with a warning. Added `api.isPlayerLocked()`.
