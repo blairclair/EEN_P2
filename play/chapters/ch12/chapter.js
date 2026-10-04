@@ -38,7 +38,8 @@
     redHall: 'house_red_hall', lounge: 'house_lounge', kitchen: 'house_kitchen', arcade: 'house_arcade',
     library: 'house_library', luxury: 'house_luxury_room', doll: 'house_doll_room',
     dorm: 'columbus_dorm', yard: 'columbus_yard', closet: 'columbus_closet',
-    woods: 'rain_woods', park: 'norman_park'          // chapter-only (off-site, no prefix)
+    foyer: 'house_foyer',
+    woods: 'woods', park: 'norman_park'          // chapter-only (off-site, no prefix); 'woods' is the shared yard's to_woods target
   };
   var MARK = {};          // MARK[mapKey][name] -> [x,y] resolved tile
   var SHARED_USED = {};   // mapKey -> true when the shared map was used
@@ -72,45 +73,72 @@
    * ext: { npcs, objects, zones, marks:{name:[x,y]}, patch:{id:{...}}, remove:[], placeholderOnly:{exits...}, ...fields }
    * For the shared copy every npc/object/zone/mark position is snapped to a free tile.
    */
+  function sharedMark(key, name) {
+    var D = G.shared && G.shared.data;
+    if (!D || !name) return null;
+    var m = (D.marks && D.marks[key] && D.marks[key][name]) || (D.spawns && D.spawns[key] && D.spawns[key][name]);
+    return m ? [m[0], m[1]] : null;
+  }
+  /**
+   * use(key, placeholder, ext): the shared map if it exists, else the placeholder.
+   * ext: { npcs, objects, zones, exits, marks:{name: [x,y] | {p:[x,y], sm:'sharedMark'}}, patch:{id:{...}},
+   *        remove:[], placeholderOnly:{npcs,objects,...}, sharedOnly:{npcs,objects,patch,...fields}, ...fields }
+   * Entities may carry `sm: 'markName'` (use that shared mark as the tile) and `keepAt: true` (no snapping).
+   * On a shared map every other entity/mark is snapped to the nearest free floor tile.
+   * (constraint: shared layouts landed after this chapter was written, so positions resolve at load time)
+   */
   function use(key, placeholder, ext) {
     ext = ext || {};
     var marks = ext.marks || {};
     var res = MARK[key] = {};
+    var LISTS = ['npcs', 'objects', 'zones', 'exits', 'lights'];
+    var SKIP = LISTS.concat(['marks', 'patch', 'remove', 'placeholderOnly', 'sharedOnly']);
     if (G.shared && G.shared.has(key)) {
       SHARED_USED[key] = true;
-      var probe = G.shared.map(key, { remove: ext.remove || [] });
+      var so = ext.sharedOnly || {};
+      var probe = G.shared.map(key, { remove: (ext.remove || []).concat(so.remove || []) });
       var room = G.Map.build(probe);
       var taken = {};
-      ['npcs', 'objects', 'zones'].forEach(function (k) {
-        (ext[k] || []).forEach(function (e) {
-          if (e.keepAt) return;
+      var e2 = { remove: (ext.remove || []).concat(so.remove || []) };
+      LISTS.forEach(function (k) {
+        var list = (ext[k] || []).concat(so[k] || []);
+        if (k !== 'exits' && k !== 'lights') list.forEach(function (e) {
+          var sm = sharedMark(key, e.sm);
+          if (sm && e.off) sm = [sm[0] + e.off[0], sm[1] + e.off[1]];
+          if (sm) e.at = sm;
+          if (e.keepAt || sm) { taken[e.at[0] + ',' + e.at[1]] = 1; return; }
           e.at = freeTile(room, probe, e.at, taken); taken[e.at[0] + ',' + e.at[1]] = 1;
         });
+        e2[k] = list;
       });
-      Object.keys(marks).forEach(function (n) { res[n] = freeTile(room, probe, marks[n], taken); });
+      Object.keys(marks).forEach(function (n) {
+        var v = marks[n], sm = Array.isArray(v) ? null : sharedMark(key, v.sm);
+        if (sm && v.off) sm = [sm[0] + v.off[0], sm[1] + v.off[1]];
+        res[n] = sm && v.exact ? sm : freeTile(room, probe, sm || (Array.isArray(v) ? v : v.p), taken);
+      });
       var ids = {};
       ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { (probe[k] || []).forEach(function (e) { if (e.id) ids[e.id] = e; }); });
-      var patch = {};
-      Object.keys(ext.patch || {}).forEach(function (id) { if (ids[id]) patch[id] = ext.patch[id]; });
-      var e2 = {};
-      Object.keys(ext).forEach(function (k) { if (k !== 'marks' && k !== 'patch' && k !== 'placeholderOnly' && k !== 'onlyPlaceholderNpcs') e2[k] = ext[k]; });
+      var patch = {}, allPatch = Object.assign({}, ext.patch || {}, so.patch || {});
+      Object.keys(allPatch).forEach(function (id) { if (ids[id]) patch[id] = allPatch[id]; });
       e2.patch = patch;
+      Object.keys(ext).forEach(function (k) { if (SKIP.indexOf(k) < 0) e2[k] = ext[k]; });
+      Object.keys(so).forEach(function (k) { if (SKIP.indexOf(k) < 0) e2[k] = so[k]; });
       return G.shared.map(key, e2);
     }
     // placeholder: concat lists, override other fields, apply patch by id
-    var m = placeholder;
-    ['npcs', 'objects', 'zones', 'exits', 'lights'].forEach(function (k) { m[k] = (m[k] || []).concat(ext[k] || []).concat((ext.placeholderOnly && ext.placeholderOnly[k]) || []); });
-    m.npcs = m.npcs.concat(ext.onlyPlaceholderNpcs || []);
-    Object.keys(ext).forEach(function (k) {
-      if (['npcs', 'objects', 'zones', 'exits', 'lights', 'marks', 'patch', 'remove', 'placeholderOnly', 'onlyPlaceholderNpcs'].indexOf(k) >= 0) return;
-      m[k] = ext[k];
+    var m = placeholder, po = ext.placeholderOnly || {};
+    LISTS.forEach(function (k) { m[k] = (m[k] || []).concat(ext[k] || []).concat(po[k] || []); });
+    Object.keys(ext).forEach(function (k) { if (SKIP.indexOf(k) < 0) m[k] = ext[k]; });
+    Object.keys(po).forEach(function (k) { if (SKIP.indexOf(k) < 0) m[k] = po[k]; });
+    var pp = Object.assign({}, ext.patch || {}, po.patch || {});
+    Object.keys(pp).forEach(function (id) {
+      ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { m[k].forEach(function (e) { if (e.id === id) Object.assign(e, pp[id]); }); });
     });
-    Object.keys(ext.patch || {}).forEach(function (id) {
-      ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { m[k].forEach(function (e) { if (e.id === id) Object.assign(e, ext.patch[id]); }); });
-    });
-    Object.keys(marks).forEach(function (n) { res[n] = marks[n]; });
+    Object.keys(marks).forEach(function (n) { var v = marks[n]; res[n] = Array.isArray(v) ? v : v.p; });
     return m;
   }
+  /** id of the entity that plays a role: the shared fixture when the shared map is used, else ours */
+  function rid(key, sharedId, localId) { return SHARED_USED[key] ? sharedId : localId; }
   function mk(key, name, fallback) { return (MARK[key] && MARK[key][name]) || fallback; }
 
   /* ---------------------------------------------------------------------
@@ -253,6 +281,7 @@
   /* ---------------------------------------------------------------------
    * Maps: placeholders for shared House / Columbus rooms
    * ------------------------------------------------------------------- */
+  var androidTalk = [{ narrate: 'The care android\'s red eye sweeps past you. "LIGHTS OUT WAS AT TWENTY-ONE HUNDRED. RETURN TO YOUR BUNK."' }];
   function lockedDoor(id, at, text) { return { id: id, at: at, to: ROOM.hall, locked: function () { return true; }, lockedText: [{ think: text }] }; }
 
   var lunaRoom = use(ROOM.lunaRoom, {
@@ -268,15 +297,15 @@
       '####D#####'
     ],
     spawn: [6, 3], ambient: 'hum', tint: '#3a2030', tintAlpha: 0.1,
-    exits: [{ id: 'to_bedroom_hall', at: [4, 7], to: ROOM.hall, toAt: [9, 1], facing: 'down' }]
-  }, {
-    marks: { wake: [6, 3], ginerva: [4, 6] },
+    exits: [{ id: 'to_bedroom_hall', at: [4, 7], to: ROOM.hall, toAt: [9, 1], facing: 'down' }],
     objects: [
-      { id: 'ch12_window', at: [4, 0], examine: [{ think: 'The garden below. Pink almond blossoms, in January. Even the trees are on contract.' }] },
-      { id: 'ch12_eye', at: [7, 0], prop: 'camera', examine: [{ think: 'The Eye in the smoke detector. Good morning to you too.' }, { sound: 'camera' }] },
-      { id: 'ch12_tablet', at: [8, 4], prop: 'monitor', examine: [{ narrate: 'The wall tablet cycles its "curated memories": Waverly at six, Waverly at nine, a Waverly they have smiled into someone else.' }, { think: 'They never once caught her real laugh.' }] },
-      { id: 'ch12_desk', at: [1, 6], examine: [{ narrate: 'A DPE pen and the penguin booklet. Page one: "Gratitude is the first step to redemption."' }] }
+      { id: 'window', at: [4, 0], examine: [{ think: 'The garden below. Pink almond blossoms, in January. Even the trees are on contract.' }] },
+      { id: 'smoke_detector', at: [7, 0], prop: 'camera', examine: [{ think: 'The Eye in the smoke detector. Good morning to you too.' }, { sound: 'camera' }] },
+      { id: 'tablet', at: [8, 4], prop: 'monitor', examine: [{ narrate: 'The wall tablet cycles its "curated memories": Waverly at six, Waverly at nine, a Waverly they have smiled into someone else.' }, { think: 'They never once caught her real laugh.' }] },
+      { id: 'desk', at: [1, 6], examine: [{ narrate: 'A DPE pen and the penguin booklet. Page one: "Gratitude is the first step to redemption."' }] }
     ]
+  }, {
+    marks: { wake: { p: [6, 3], sm: 'bed', exact: true }, ginerva: { p: [4, 6], sm: 'door', exact: true } }
   });
 
   var hall = use(ROOM.hall, {
@@ -293,24 +322,20 @@
       { id: 'to_luna_room', at: [9, 0], to: ROOM.lunaRoom, toAt: [4, 6], facing: 'up' },
       { id: 'to_infirmary', at: [0, 2], to: ROOM.infirmary, toAt: [8, 3], facing: 'left' },
       { id: 'to_luxury_room', at: [27, 2], to: ROOM.luxury, toAt: [1, 3], facing: 'right' },
-      { id: 'to_red_hall', at: [24, 4], to: ROOM.redHall, toAt: [24, 3], facing: 'down' },
-      lockedDoor('door_1', [3, 0], 'No. 1. Annette. I would rather sleep in the cage.'),
-      lockedDoor('door_5', [15, 0], "No. 5. Kessie's door. Somebody has already stripped the name plate."),
-      lockedDoor('door_7', [21, 0], "No. 7. Isaiah. I knock. Nothing."),
-      lockedDoor('door_2', [6, 4], "No. 2. Carol's. Sealed."),
-      lockedDoor('door_4', [12, 4], "No. 4. John's. Sealed."),
-      lockedDoor('door_6', [18, 4], "No. 6. Delphin's. Empty while he's in the infirmary.")
+      { id: 'to_foyer', at: [24, 4], to: ROOM.redHall, toAt: [24, 3], facing: 'down' },
+      lockedDoor('to_annette_room', [3, 0], 'No. 1. Annette. I would rather sleep in the cage.'),
+      lockedDoor('to_kessie_room', [15, 0], "No. 5. Kessie's door. Somebody has already stripped the name plate."),
+      lockedDoor('to_isaiah_room', [21, 0], "No. 7. Isaiah. I knock. Nothing."),
+      lockedDoor('to_carol_room', [6, 4], "No. 2. Carol's. Sealed."),
+      lockedDoor('to_john_room', [12, 4], "No. 4. John's. Sealed."),
+      lockedDoor('to_delphin_room', [18, 4], "No. 6. Delphin's. Empty while he's in the infirmary.")
+    ],
+    objects: [
+      { id: 'cam_west', at: [13, 0], prop: 'camera', examine: [{ think: 'Two cameras on this hall. I wave. Somebody, somewhere, gets paid to watch me wave.' }] }
     ]
   }, {
-    objects: [
-      { id: 'ch12_hallcam', at: [13, 0], prop: 'camera', examine: [{ think: 'Two cameras on this hall. I wave. Somebody, somewhere, gets paid to watch me wave.' }] },
-      { id: 'ch12_poster', at: [18, 0], prop: 'poster', examine: [{ narrate: 'A poster: "NOTHING YOU FEEL IS PRIVATE."' }] }
-    ],
-    patch: { to_luxury_room: { locked: '!ch12_luxuryNight', lockedText: [{ think: 'The Luxury Room. Only for whoever is number one tonight.' }] } },
-    placeholderOnly: {}
+    patch: { to_luxury_room: { locked: '!ch12_luxuryNight', lockedText: [{ think: 'The Luxury Room. Only for whoever is number one tonight.' }] } }
   });
-  // the placeholder luxury door is also locked unless it's our night
-  (hall.exits || []).forEach(function (e) { if (e.id === 'to_luxury_room') { e.locked = '!ch12_luxuryNight'; e.lockedText = [{ think: 'The Luxury Room. Only for whoever is number one tonight.' }]; } });
 
   var infirmary = use(ROOM.infirmary, {
     name: 'Infirmary',
@@ -325,25 +350,40 @@
       '##########'
     ],
     spawn: [8, 3], ambient: 'hum', tint: '#c8e8e0', tintAlpha: 0.06,
-    exits: [{ id: 'to_bedroom_hall', at: [9, 3], to: ROOM.hall, toAt: [1, 2], facing: 'right' }]
-  }, {
-    marks: { door: [8, 3], bedside: [4, 2], ginerva: [6, 3] },
-    npcs: [
-      { id: 'delphin', at: [3, 2], spec: 'delphin', facing: 'down', if: '!ch12_delphinGone', talk: function (api) { return delphinTalk(api); } },
-      { id: 'medic', at: [7, 2], spec: 'medic', facing: 'left', if: '!ch12_medicOut', talk: function (api) { return medicTalk(api); } }
-    ],
+    exits: [{ id: 'to_bedroom_hall', at: [9, 3], to: ROOM.hall, toAt: [1, 2], facing: 'right' }],
     objects: [
-      { id: 'ch12_mats', at: [5, 5], examine: [{ narrate: 'Branded blood-absorbent mats under every cot. "SOAK IT UP."' }] },
-      { id: 'ch12_medoffice', at: [8, 1], examine: [{ narrate: 'A door: MEDICAL OFFICE. Somebody behind it is humming the network jingle.' }] }
+      { id: 'mats_sign', at: [5, 5], examine: [{ narrate: 'Branded blood-absorbent mats under every cot. "SOAK IT UP."' }] }
+    ]
+  }, {
+    marks: { door: { p: [8, 3], sm: 'door', exact: true }, bedside: { p: [4, 2], sm: 'cot_2', exact: true }, medic: { p: [7, 3], sm: 'medic', exact: true } },
+    npcs: [
+      { id: 'delphin', at: [3, 2], sm: 'cot_2_bed', spec: 'delphin', facing: 'down', if: '!ch12_delphinGone', talk: function (api) { return delphinTalk(api); } },
+      { id: 'medic', at: [7, 2], sm: 'cot_3', spec: 'medic', facing: 'left', if: '!ch12_medicOut', talk: function (api) { return medicTalk(api); } }
     ]
   });
+
+  var foyer = use(ROOM.foyer, {
+    name: 'Foyer',
+    tiles: [
+      '#####D####',
+      '#,,,,,,,,#',
+      'D,,,,,,,,#',
+      '#,,,,,,,,#',
+      '##########'
+    ],
+    spawn: [5, 1], ambient: 'hum',
+    exits: [
+      { id: 'to_bedroom_hall', at: [5, 0], to: ROOM.hall, toAt: [24, 3], facing: 'up' },
+      { id: 'to_red_hall', at: [0, 2], to: ROOM.redHall, toAt: [24, 3], facing: 'left' }
+    ]
+  }, {});
 
   var redHall = use(ROOM.redHall, {
     name: 'Red Hall',
     tiles: [
       '####D#####D#####D#############',
       '#RRRRRRRRRRRRRRRRRRRRRRRRRRRR#',
-      '#RRRRRRRRRRRRRRRRRRRRRRRRRRRR#',
+      '#RRRRRRRRRRRRRRRRRRRRRRRRRRRRD',
       '#RRRRRRRRRRRRRRRRRRRRRRRRRRRR#',
       '#######D########D#######D#####'
     ],
@@ -353,15 +393,10 @@
       { id: 'to_library', at: [10, 0], to: ROOM.library, toAt: [5, 7], facing: 'up' },
       { id: 'to_arcade', at: [16, 0], to: ROOM.arcade, toAt: [5, 6], facing: 'up' },
       { id: 'to_kitchen', at: [7, 4], to: ROOM.kitchen, toAt: [5, 1], facing: 'down' },
-      { id: 'to_bedroom_hall', at: [24, 4], to: ROOM.hall, toAt: [24, 3], facing: 'up' },
+      { id: 'to_foyer', at: [29, 2], to: ROOM.foyer, toAt: [1, 2], facing: 'right' },
       { id: 'to_dining', at: [16, 4], to: ROOM.hall, locked: function () { return true; }, lockedText: [{ think: 'The dining room. Nobody eats together anymore.' }] }
     ]
-  }, {
-    objects: [
-      { id: 'ch12_poster2', at: [22, 0], prop: 'poster', examine: [{ narrate: 'A poster: "OBEDIENCE IS BEAUTY."' }] },
-      { id: 'ch12_redcam', at: [12, 0], prop: 'camera', examine: [{ think: 'Three cameras on the spine of this house. Its eyes run down its back.' }] }
-    ]
-  });
+  }, {});
 
   var lounge = use(ROOM.lounge, {
     name: 'Lounge',
@@ -377,15 +412,15 @@
       '#####D######'
     ],
     spawn: [5, 7], ambient: 'hum',
-    exits: [{ id: 'to_red_hall', at: [5, 8], to: ROOM.redHall, toAt: [4, 1], facing: 'down' }]
-  }, {
-    npcs: [{ id: 'annette', at: [3, 2], spec: 'annette', facing: 'down', talk: function (api) { return annetteTalk(api); } }],
+    exits: [{ id: 'to_red_hall', at: [5, 8], to: ROOM.redHall, toAt: [4, 1], facing: 'down' }],
     objects: [
-      { id: 'ch12_pillows', at: [10, 2], examine: [{ narrate: 'Embroidered pillows: "CRY PRETTY." "BETRAY, BUT MAKE IT ART."' }] },
-      { id: 'ch12_mirror', at: [4, 0], examine: [{ think: 'The mirror from the Carol and Kessie fight. Somebody polished it. Somebody always polishes it.' }] }
+      { id: 'lounge_pillow1', at: [10, 2], examine: [{ narrate: 'Embroidered pillows: "CRY PRETTY." "BETRAY, BUT MAKE IT ART."' }] }
     ]
+  }, {
+    npcs: [{ id: 'annette', at: [3, 2], sm: 'screen_front', spec: 'annette', facing: 'down', talk: function (api) { return annetteTalk(api); } }]
   });
 
+  // the story camera: a tripod camera by the islands (the wall cameras are out of reach)
   var kitchen = use(ROOM.kitchen, {
     name: 'Kitchen',
     tiles: [
@@ -400,12 +435,13 @@
       'QQQQQQQQQQQQ'
     ],
     spawn: [5, 1], ambient: 'hum',
-    exits: [{ id: 'to_red_hall', at: [5, 0], to: ROOM.redHall, toAt: [7, 3], facing: 'up' }]
+    exits: [{ id: 'to_red_hall', at: [5, 0], to: ROOM.redHall, toAt: [7, 3], facing: 'up' }],
+    objects: [
+      { id: 'kitchen_kettle', at: [3, 1], examine: [{ think: "Annette's tea station. I don't even look at the kettle anymore." }] }
+    ]
   }, {
     objects: [
-      { id: 'ch12_kcam', at: [10, 0], prop: 'camera', examine: function (api) { return storyCamera(api); } },
-      { id: 'ch12_kettle', at: [3, 1], examine: [{ think: "Annette's tea station. I don't even look at the kettle anymore." }] },
-      { id: 'ch12_fridge', at: [8, 1], examine: [{ narrate: 'Real meat. Real butter. A real chandelier over it all, as if the onions need mood lighting.' }] }
+      { id: 'ch12_kcam', at: [10, 2], prop: 'camera', solid: true, examine: function (api) { return storyCamera(api); } }
     ]
   });
 
@@ -422,14 +458,13 @@
       '#####D######'
     ],
     spawn: [5, 6], ambient: 'crowd', tint: '#3a1a4a', tintAlpha: 0.12,
-    exits: [{ id: 'to_red_hall', at: [5, 7], to: ROOM.redHall, toAt: [16, 1], facing: 'down' }]
-  }, {
+    exits: [{ id: 'to_red_hall', at: [5, 7], to: ROOM.redHall, toAt: [16, 1], facing: 'down' }],
     objects: [
-      { id: 'ch12_gallery', at: [2, 2], examine: function (api) { return arcadeGallery(api); } },
-      { id: 'ch12_wheel', at: [9, 2], examine: [{ narrate: 'A wheel of fortune. Every wedge says "GRATITUDE".' }] },
-      { id: 'ch12_jackpot', at: [9, 4], examine: [{ narrate: 'The jackpot machine flashes CONGRATULATIONS, WINNER at nobody.' }] },
-      { id: 'ch12_isaiahtable', at: [2, 4], examine: [{ think: "Isaiah's number-pattern table. He's left a sequence half finished. He never leaves things half finished." }] }
+      { id: 'arcade_shooting', at: [2, 2], prop: 'monitor', examine: function (api) { return arcadeGallery(api); } },
+      { id: 'arcade_wheel', at: [9, 2], examine: [{ narrate: 'A wheel of fortune. Every wedge says "GRATITUDE".' }] }
     ]
+  }, {
+    patch: { arcade_shooting: { examine: function (api) { return arcadeGallery(api); } } }
   });
 
   var library = use(ROOM.library, {
@@ -448,11 +483,7 @@
     spawn: [5, 7], ambient: 'hum', tint: '#2a3a5a', tintAlpha: 0.08,
     exits: [{ id: 'to_red_hall', at: [5, 8], to: ROOM.redHall, toAt: [10, 1], facing: 'down' }]
   }, {
-    npcs: [{ id: 'isaiah', at: [8, 3], spec: 'isaiah', facing: 'left', if: 'ch12_phase == hub', talk: function (api) { return isaiahAvoid(api); } }],
-    objects: [
-      { id: 'ch12_sign', at: [5, 0], examine: [{ narrate: 'Fluorescent blue: "Books may not be removed from the library. Violators will face punitive measures."' }] },
-      { id: 'ch12_falsville', at: [1, 4], examine: [{ think: 'The Falsville series. Waverly would have read all twelve by now and complained about the ending.' }] }
-    ]
+    npcs: [{ id: 'isaiah', at: [8, 3], sm: 'isaiah_chair', spec: 'isaiah', facing: 'left', if: 'ch12_phase == hub', talk: function (api) { return isaiahAvoid(api); } }]
   });
 
   var luxury = use(ROOM.luxury, {
@@ -468,12 +499,14 @@
       '##########'
     ],
     spawn: [1, 3], ambient: null, tint: '#e8c890', tintAlpha: 0.08,
-    exits: [{ id: 'to_bedroom_hall', at: [0, 3], to: ROOM.hall, toAt: [26, 2], facing: 'left' }]
+    exits: [{ id: 'to_bedroom_hall', at: [0, 3], to: ROOM.hall, toAt: [26, 2], facing: 'left' }],
+    objects: [{ id: 'lux_bed', at: [7, 2], examine: function (api) { return luxuryBed(api); } }]
   }, {
-    objects: [{ id: 'ch12_luxbed', at: [7, 2], examine: function (api) { return luxuryBed(api); } }]
+    patch: { lux_bed: { examine: function (api) { return luxuryBed(api); } } }
   });
 
-  var samanthaDef = { prop: 'samantha', examine: function (api) { return bopSamantha(api); } };
+  var samanthaPatch = { examine: function (api) { return bopSamantha(api); } };
+  var UPX = (G.shared && G.shared.data && G.shared.data.upstairs && G.shared.data.upstairs.extras) || {};
   var dollRoom = use(ROOM.doll, {
     name: 'Doll Room',
     tiles: [
@@ -483,7 +516,7 @@
       'q..c........c..W',
       'q..............q',
       'q.c...........cq',
-      'q......TT......q',
+      'q..............q',
       'q.c...........cq',
       'q..............q',
       'q..c........c..q',
@@ -492,26 +525,29 @@
     ],
     legend: { q: 'dollshelf' },
     spawn: [8, 10], ambient: 'tension', tint: '#5a1a10', tintAlpha: 0.14,
-    exits: [{ id: 'to_bedroom_hall', at: [8, 11], to: ROOM.hall, locked: function () { return true; }, lockedText: [{ think: 'The door is locked behind us. Of course it is.' }] }],
-    objects: [Object.assign({ id: 'samantha', at: [7, 1] }, samanthaDef)],
-    npcs: [
-      { id: 'ch12_tbl', at: [5, 1], spec: 'tb', facing: 'down' },
-      { id: 'ch12_tbr', at: [10, 1], spec: 'tb', facing: 'down' }
-    ]
-  }, {
-    marks: { luna: [8, 9], lunaSeat: [7, 7], annetteSeat: [7, 5], delphin: [4, 7], isaiah: [11, 7], judge: [9, 2], trader: [8, 9], ballot: [7, 4], wait: [5, 4] },
-    patch: { samantha: samanthaDef },
+    exits: [{ id: 'to_service_stair', at: [8, 11], to: ROOM.hall, locked: function () { return true; }, lockedText: [{ think: 'The door is locked behind us. Of course it is.' }] }],
     objects: [
-      { id: 'ch12_throne', at: [8, 1], prop: 'throne' },
-      { id: 'ch12_board', at: [7, 6], prop: 'board', solid: true, layer: 1 },
-      { id: 'ch12_window2', at: [15, 3], examine: [{ think: 'Rain on the parking lot. It is always raining out of this window.' }] }
+      { id: 'samantha', at: [7, 1], prop: 'samantha', examine: function (api) { return bopSamantha(api); } },
+      { id: 'ch12_throne', at: [9, 1], prop: 'throne' },
+      { id: 'ch12_board', at: [7, 6], prop: 'board', solid: true, layer: 1 }
     ],
     npcs: [
-      { id: 'judge', at: [9, 2], spec: 'judge', facing: 'down', visible: false },
-      { id: 'trader', at: [8, 10], spec: 'trader', facing: 'up', visible: false },
-      { id: 'delphin2', at: [4, 7], spec: 'delphin', facing: 'right', visible: false },
-      { id: 'isaiah2', at: [11, 7], spec: 'isaiah', facing: 'left', visible: false },
-      { id: 'annette2', at: [7, 5], spec: 'annette', facing: 'down', visible: false }
+      { id: 'tb_statue_left', at: [5, 1], spec: 'tb', facing: 'down' },
+      { id: 'tb_statue_right', at: [11, 1], spec: 'tb', facing: 'down' }
+    ]
+  }, {
+    marks: {
+      luna: { p: [8, 10], sm: 'from_service_stair', exact: true }, samanthaFront: { p: [7, 2], sm: 'samantha', exact: true },
+      lunaSeat: { p: [7, 7], sm: 'checkers_table', off: [0, 1], exact: true }, trader: { p: [8, 9], sm: 'trader_stand', exact: true }
+    },
+    patch: { samantha: samanthaPatch },
+    sharedOnly: { objects: [UPX.judgeThrone, UPX.checkersTable].filter(Boolean).map(function (o) { return Object.assign({ keepAt: true }, G.cloneDef(o)); }) },
+    npcs: [
+      { id: 'judge', at: [9, 2], sm: 'judge_throne', spec: 'judge', facing: 'down', visible: false },
+      { id: 'trader', at: [8, 10], sm: 'trader_chair', spec: 'trader', facing: 'up', visible: false },
+      { id: 'delphin2', at: [4, 7], sm: 'chair_7', spec: 'delphin', facing: 'right', visible: false },
+      { id: 'isaiah2', at: [11, 7], sm: 'chair_4', spec: 'isaiah', facing: 'left', visible: false },
+      { id: 'annette2', at: [7, 5], sm: 'checkers_table', off: [0, -1], spec: 'annette', facing: 'down', visible: false }
     ]
   });
 
@@ -530,19 +566,23 @@
       '####################'
     ],
     spawn: [2, 6], ambient: 'drone', dark: 0.62, playerLight: 34, tint: '#101830', tintAlpha: 0.18,
-    lights: [{ at: [4, 0], r: 26 }, { at: [9, 0], r: 26 }, { at: [14, 0], r: 26 }]
+    lights: [{ at: [4, 0], r: 26 }, { at: [9, 0], r: 26 }, { at: [14, 0], r: 26 }],
+    objects: [{ id: 'bunk_luna', at: [1, 5], prop: 'pillow', solid: true, examine: function (api) { return packItem(api, 'photo'); } }],
+    npcs: [{ id: 'ch12_android', at: [8, 2], spec: 'care_android', path: [[2, 2], [16, 2], [16, 6], [2, 6]], pause: 1.2, speed: 22, talk: androidTalk }]
   }, {
-    marks: { start: [2, 6], door: [18, 4] },
+    marks: { start: { p: [2, 6], sm: 'bunk_salina', exact: true }, door: { p: [18, 4], sm: 'door', exact: true } },
+    ambient: 'drone', dark: 0.62, playerLight: 34, tint: '#101830', tintAlpha: 0.18,
+    patch: { bunk_luna: { examine: function (api) { return packItem(api, 'photo'); } } },
+    sharedOnly: {
+      npcs: [{ id: 'ch12_android', at: [8, 5], keepAt: true, spec: 'care_android', path: [[1, 5], [14, 5], [14, 8], [1, 8]], pause: 1.2, speed: 22, talk: androidTalk }],
+      lights: [{ at: [3, 1], r: 26 }, { at: [12, 1], r: 26 }]
+    },
     npcs: [
-      { id: 'salina', at: [17, 4], spec: 'salina_child', facing: 'left', talk: function (api) { return salinaDorm(api); } },
-      { id: 'ch12_android', at: [8, 2], spec: 'care_android', path: [[2, 2], [16, 2], [16, 6], [2, 6]], pause: 1.2, speed: 22,
-        talk: [{ narrate: 'The care android\'s red eye sweeps past you. "LIGHTS OUT WAS AT TWENTY-ONE HUNDRED. RETURN TO YOUR BUNK."' }] }
+      { id: 'salina', at: [17, 4], sm: 'door', spec: 'salina_child', facing: 'up', talk: function (api) { return salinaDorm(api); } }
     ],
     objects: [
-      { id: 'ch12_pillow', at: [1, 5], prop: 'pillow', solid: true, examine: function (api) { return packItem(api, 'photo'); } },
-      { id: 'ch12_locker', at: [17, 1], examine: function (api) { return packItem(api, 'cans'); } },
-      { id: 'ch12_basket', at: [9, 7], examine: function (api) { return packItem(api, 'jacket'); } },
-      { id: 'ch12_dormtv', at: [1, 7], examine: [{ narrate: 'The dorm TV, off for once. Your reflection in it is fourteen and very serious.' }] }
+      { id: 'ch12_locker', at: [14, 4], prop: 'box', solid: true, examine: function (api) { return packItem(api, 'cans'); } },
+      { id: 'ch12_basket', at: [6, 10], prop: 'bag', solid: true, examine: function (api) { return packItem(api, 'jacket'); } }
     ]
   });
 
@@ -563,31 +603,37 @@
       'BBBBBBBBBDBBBBBBBBBBBB'
     ],
     legend: { '^': 'tree', ';': 'mud', H: 'fence' },
-    spawn: [9, 10], ambient: 'static', dark: 0.55, playerLight: 30, tint: '#0a1428', tintAlpha: 0.2,
-    lights: [{ at: [9, 10], r: 30, flicker: true }],
+    spawn: [9, 10],
     exits: [
-      { id: 'to_woods', at: [14, 0], to: ROOM.woods, toAt: [1, 12], facing: 'right', if: '!ch12_dawn' },
-      { id: 'to_dorm', at: [9, 11], to: ROOM.yard, locked: function () { return true; }, lockedText: [{ think: 'Not back. Not yet.' }] }
+      { id: 'to_woods', at: [14, 0], to: ROOM.woods, toAt: [1, 12], facing: 'right' },
+      { id: 'to_columbus_lounge', at: [9, 11], to: ROOM.yard, locked: function () { return true; }, lockedText: [{ think: 'Not back. Not yet.' }] }
+    ],
+    objects: [
+      { id: 'oak', at: [5, 5], prop: 'oak', solid: true }
     ]
   }, {
-    marks: { door: [9, 10], gap: [14, 2], delphin: [12, 6], dawnLuna: [14, 3] },
+    ambient: 'static', dark: 0.55, playerLight: 30, tint: '#0a1428', tintAlpha: 0.2,
+    marks: { door: { p: [9, 10], sm: 'back_door', exact: true }, dawnLuna: { p: [14, 3], sm: 'from_woods', exact: true } },
+    patch: {
+      to_woods: { if: '!ch12_dawn' },
+      oak: { examine: [{ think: 'My reading tree. I have read every book in the donation box up there, twice. Tonight I am going to live one.' }] }
+    },
     npcs: [
       { id: 'salina_y', at: [14, 3], spec: 'salina_child', facing: 'up', visible: false },
       { id: 'delphin_teen', at: [12, 6], spec: 'delphin_teen', facing: 'up', visible: false },
       { id: 'staffer', at: [9, 10], spec: 'caseworker', facing: 'up', visible: false }
     ],
     objects: [
-      { id: 'ch12_oak', at: [5, 5], prop: 'oak', solid: true, examine: [{ think: 'My reading tree. I have read every book in the donation box up there, twice. Tonight I am going to live one.' }] },
-      { id: 'ch12_sensor', at: [10, 10], examine: [{ narrate: 'The door sensor blinks green. Delphin taught us: hold the latch up, count to seven, let it fall.' }] },
-      { id: 'ch12_rain_y', at: [21, 10], prop: 'rain', solid: false, layer: 1 }
-    ]
+      { id: 'ch12_rain_y', at: [17, 10], prop: 'rain', solid: false, layer: 1 }
+    ],
+    lights: [{ at: [9, 10], r: 30, flicker: true }]
   });
 
   var closet = use(ROOM.closet, {
     name: 'The Closet Under the Stairs',
     tiles: ['####', '#..#', '#..#', '####'],
-    spawn: [1, 1], ambient: 'drone', dark: 0.85, playerLight: 18
-  }, {});
+    spawn: [1, 1]
+  }, { ambient: 'drone', dark: 0.85, playerLight: 18, marks: { inside: { p: [1, 1], sm: 'inside', exact: true } } });
 
   /* --- the woods (procedural, deterministic) --- */
   var WOODS_PATH = [[1, 12], [4, 12], [7, 12], [10, 7], [16, 6], [20, 11], [23, 12], [26, 10]];
@@ -745,6 +791,7 @@
     return { init: init, legal: legal, apply: apply, aiMove: aiMove, count: count, isKing: isKing, side: side };
   })();
 
+  G.chapterBag(CH).data.CK = CK;   // test/debug access (api.data.CK); no global
   function newCheckersState() { return { b: CK.init(), turn: 'r', redMoves: 0, quiet: 0, last: null, taunted: [], plies: 0 }; }
 
   var checkersGame = {
@@ -761,6 +808,7 @@
       // the cursor starts on a movable piece
       function refresh() { moves = CK.legal(st.b, 'b'); if (moves.length && !sel) cursor = moves[0].from; }
       if (st.turn === 'b') refresh();
+      p.live = st; p.cursor = function () { return { cursor: cursor, sel: sel, prefix: prefix.slice() }; };   // read by test drivers
       return new Promise(function (resolve) {
         var done = false;
         function finish(res) { if (done) return; done = true; res.state = st; resolve(res); }
@@ -1134,7 +1182,7 @@
   maps[ROOM.redHall] = redHall; maps[ROOM.lounge] = lounge; maps[ROOM.kitchen] = kitchen;
   maps[ROOM.arcade] = arcade; maps[ROOM.library] = library; maps[ROOM.luxury] = luxury;
   maps[ROOM.doll] = dollRoom; maps[ROOM.dorm] = dorm; maps[ROOM.yard] = yard; maps[ROOM.closet] = closet;
-  maps[ROOM.woods] = woods; maps[ROOM.park] = park;
+  maps[ROOM.woods] = woods; maps[ROOM.park] = park; maps[ROOM.foyer] = foyer;
 
   G.registerChapter({
     id: CH,
@@ -1284,7 +1332,7 @@
     await api.think('Pack. Then Salina. Then out the back before its next sweep.');
     await api.until(function (f) { return f.ch12_pack_photo && f.ch12_pack_cans && f.ch12_pack_jacket; }, {
       objective: 'Pack: the photo, the cans, a jacket',
-      targets: ['ch12_pillow', 'ch12_locker', 'ch12_basket']
+      targets: ['bunk_luna', 'ch12_locker', 'ch12_basket']
     });
     api.objective('Meet Salina at the back door');
     await api.waitForInteract('salina');
@@ -1655,7 +1703,7 @@
       api.objective('Go to the Luxury Room (east end of the bedroom hall)');
       await api.waitForRoom(ROOM.luxury);
       api.objective('Lie down');
-      await api.waitForInteract('ch12_luxbed');
+      await api.waitForInteract('lux_bed');
       api.objective(null);
       await api.narrate('The only room in the house with no cameras. No Eye in the smoke detector. No lens in a book spine.');
       await api.think('I don\'t know what to do with my face when nobody is watching it. So I let it do whatever it wants.');
@@ -1705,7 +1753,7 @@
     await api.move('player', mk(ROOM.doll, 'lunaSeat', [7, 7]));
     api.face('player', 'up');
     api.show('delphin2'); api.show('annette2'); api.show('isaiah2');
-    await api.narrate('Delphin limps in and takes the chair beside mine. Our united front. Annette and Isaiah arrive together and sit across from us. Her hand rests on his shoulder.');
+    await api.narrate('Delphin limps in and takes a chair on my side of the table. Our united front. Annette and Isaiah arrive together and sit across from us. Her hand rests on his shoulder.');
     await api.narrate('The Judge checks his watch. And again. A few minutes later, Trader slinks through the door.');
     api.show('trader');
     await api.say('trader', 'Sorry I\'m late. Had to take a few calls.', { mood: 'smug' });

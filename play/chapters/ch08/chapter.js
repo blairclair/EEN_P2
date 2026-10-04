@@ -108,7 +108,11 @@
       var ids = Object.keys(lock).filter(function (x) { return (base.exits || []).some(function (q) { return q.id === x; }); });
       if (ids.length) {
         e.remove = (e.remove || []).concat(ids);
-        e.exits = (e.exits || []).concat(ids.map(function (x) { return G.shared.exit(id, x, { locked: lock[x].locked, lockedText: lock[x].lockedText }); }));
+        e.exits = (e.exits || []).concat(ids.map(function (x) {
+          var ex = G.shared.exit(id, x, { locked: lock[x].locked, lockedText: lock[x].lockedText });
+          if (!ex.toAt && ex.to && G.shared.at) { var sp = G.shared.at(ex.to, 'from_' + String(id).replace(/^house_/, '')); if (sp) ex.toAt = sp; }
+          return ex;
+        }));
       }
       return G.shared.map(id, e);
     }
@@ -399,9 +403,9 @@
     if (SN.hidden) R2.text('HIDDEN  -  press a direction to come out', G.W / 2, y + 2, { size: 7, align: 'center', color: P.teal });
     if (SN.msgT > 0 && SN.msg) R2.text(SN.msg, G.W / 2, G.H - 52, { size: 8, align: 'center', color: P.text });
     if (SN.hintT > 0 && SN.hint) {
-      var lines = [].concat(SN.hint), h = 6 + lines.length * 9;
-      R2.rect(6, G.H - 30 - h, 230, h, '#000', 0.6);
-      lines.forEach(function (l, i) { R2.text(l, 10, G.H - 27 - h + i * 9, { size: 6, color: i === 0 ? P.amber : P.text }); });
+      var lines = [].concat(SN.hint), h = 5 + lines.length * 8, bw = 168;
+      R2.rect(G.W - bw - 4, 22, bw, h, '#000', 0.6);
+      lines.forEach(function (l, i) { R2.text(l, G.W - bw, 25 + i * 8, { size: 5.5, color: i === 0 ? P.amber : P.text }); });
     }
     var cr = creeping();
     R2.text(cr ? 'CREEPING' : '[SHIFT] creep', G.W - 8, G.H - 26, { size: 6, align: 'right', color: cr ? P.teal : P.faint });
@@ -509,7 +513,8 @@
           for (var i = 0; i < 9; i++) R2.rect(60, 30 + i * 16, 264, 3, '#1a140e');
           var gx = 186, gw = 4 + open * 46;
           R2.rect(gx - gw / 2, 24, gw, 150, '#e8c890', 0.22 + open * 0.3);
-          R2.rect(gx - gw / 2 + 4, 60, Math.max(0, gw - 8) * 0.6, 100, '#100c0a', 0.6 * open);
+          R2.rect(gx - gw / 2 + 4, 70, Math.max(0, gw - 8) * 0.6, 100, '#100c0a', 0.6 * open);
+          var hc = R2.ctx; hc.save(); hc.globalAlpha = 0.6 * open; hc.fillStyle = '#100c0a'; hc.beginPath(); hc.arc(gx - gw / 2 + 4 + Math.max(0, gw - 8) * 0.3, 60, Math.max(1, (gw - 8) * 0.22), 0, Math.PI * 2); hc.fill(); hc.restore();
           for (var s = 0; s < 6; s++) R2.rect(gx - 60, 40 + s * 22, 120, 2, '#f0d8a8', 0.08 + open * 0.08);
           var sh = (Math.random() - 0.5) * pr * 4;
           R2.rect(40 + sh, 150, 70, 10, '#000', 0.6); R2.rect(41 + sh, 151, 68 * pr, 8, pr > 0.8 ? P.red : '#9fb8ff');
@@ -850,7 +855,7 @@
     var entry = where === 'pantry' ? at(R.kitchen, 'from_red_hall', [5, 1]) : where === 'table' ? at(R.dining, 'from_red_hall', [6, 1]) : [24, 2];
     if (inRoom) {
       api.addNpc({ id: tid, at: entry, spec: 'trader', facing: 'down' });
-      api.addNpc({ id: gid, at: [entry[0] + 1, entry[1]], spec: 'ginerva', facing: 'down' });
+      api.addNpc({ id: gid, at: [entry[0] + 1, entry[1] + 1], spec: 'ginerva', facing: 'down' });
       api.sound('door');
       if (G.World.room) G.World.room.def.dark = 0.3;
       if (where === 'pantry') await api.narrate('The footsteps enter the kitchen. A switch clicks, and a thin bar of light appears under the slats.');
@@ -1009,6 +1014,7 @@
    * PART 2: Trader's one-on-one (Screening Room, on camera)
    * ===================================================================== */
   async function oneOnOne(api) {
+    player().visible = true;
     await api.goRoom(R.screening, { at: at(R.screening, 'from_bedroom_hall', [3, 5]), facing: 'up' });
     await api.fadeIn(500);
     api.onAir(true); api.approval(true);

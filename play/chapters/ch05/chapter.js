@@ -70,12 +70,22 @@
   }
   function xyOf(v) { return Array.isArray(v) ? { x: v[0], y: v[1] } : v && v.x != null ? { x: v.x, y: v.y } : null; }
 
-  function fitShared(name, m, ext) {
+  /**
+   * Fit this chapter's entities and staging spots onto a map (shared or fallback):
+   *  - `fb: true` entities only exist in the fallback (the shared map has its own, same id);
+   *  - `sh: true` entities only exist on the shared map;
+   *  - `wall: true` objects keep their tile; other chapter objects move to the nearest free tile;
+   *  - spots `{at, mark}` use the shared mark when present, `entry` uses the first shared spawn.
+   */
+  function fit(name, m, ext, isShared) {
     var built = G.Map.build(m);
     var taken = {};
     function key(x, y) { return x + ',' + y; }
     var mine = {};
     (ext.npcs || []).concat(ext.objects || []).forEach(function (e) { mine[e.id] = true; });
+    function keep(o) { return !(mine[o.id] && (isShared ? o.fb : o.sh)); }
+    m.objects = (m.objects || []).filter(keep);
+    m.npcs = (m.npcs || []).filter(keep);
     (m.npcs || []).concat(m.objects || []).forEach(function (e) { if (!mine[e.id] && e.at) taken[key(e.at[0], e.at[1])] = true; });
     (m.exits || []).forEach(function (e) { if (e.at) taken[key(e.at[0], e.at[1])] = true; });
     function free(x, y) { return x >= 0 && y >= 0 && x < built.w && y < built.h && !G.Map.solidAt(built, x, y) && !taken[key(x, y)]; }
@@ -93,22 +103,20 @@
       }
       return [x, y];
     }
-    // fallback-only decoration (wall-mounted / furniture examines) is dropped on a shared layout
-    m.objects = (m.objects || []).filter(function (o) { return !(mine[o.id] && o.fb); });
-    (m.objects || []).forEach(function (o) {
+    (m.objects || []).concat(m.npcs || []).forEach(function (o) {
       if (!mine[o.id]) return;
-      if (o.sharedProp) o.prop = o.sharedProp;
+      if (isShared && o.sharedProp) o.prop = o.sharedProp;
+      if (o.wall || o.keepAt) { taken[key(o.at[0], o.at[1])] = true; return; }
       var p = nearest(o.at[0], o.at[1]); o.at = p; taken[key(p[0], p[1])] = true;
     });
-    var marks = (G.shared.data && G.shared.data.marks && G.shared.data.marks[name]) || {};
-    var spawns = (G.shared.data && G.shared.data.spawns && G.shared.data.spawns[name]) || {};
+    var marks = (isShared && G.shared.data && G.shared.data.marks && G.shared.data.marks[name]) || {};
+    var spawns = (isShared && G.shared.data && G.shared.data.spawns && G.shared.data.spawns[name]) || {};
     var spots = {};
     Object.keys(ext.spots || {}).forEach(function (k) {
       var s = ext.spots[k];
       var at = Array.isArray(s) ? s : s.at, mk = Array.isArray(s) ? null : s.mark;
       var p = null;
       if (mk && marks[mk]) p = xyOf(marks[mk]);
-      else if (mk && built.markers && built.markers[mk]) p = built.markers[mk][0];
       if (!p && k === 'entry') {
         var sk = Object.keys(spawns)[0];
         p = sk ? xyOf(spawns[sk]) : built.spawn;
@@ -121,16 +129,17 @@
   }
 
   function house(k, ext, fallback) {
-    var name = ROOMS[k];
-    var m;
-    if (G.shared.has(name)) {
+    var name = ROOMS[k], shared = G.shared.has(name), m;
+    if (shared) {
       var ext2 = {}; Object.keys(ext).forEach(function (kk) { if (kk !== 'spots') ext2[kk] = ext[kk]; });
       m = G.shared.map(name, ext2);
-      try { fitShared(name, m, ext); } catch (e) { G.warn('ch05: could not fit entities onto ' + name + ': ' + e.message); m.ch05Spots = G.cloneDef(ext.spots || {}); }
     } else {
       m = mergeExt(fallback, ext);
-      var sp = {};
-      Object.keys(ext.spots || {}).forEach(function (kk) { var s = ext.spots[kk]; sp[kk] = Array.isArray(s) ? s.slice() : s.at.slice(); });
+    }
+    try { fit(name, m, ext, shared); }
+    catch (e) {
+      G.warn('ch05: could not fit entities onto ' + name + ': ' + e.message);
+      var sp = {}; Object.keys(ext.spots || {}).forEach(function (kk) { var s = ext.spots[kk]; sp[kk] = Array.isArray(s) ? s.slice() : s.at.slice(); });
       m.ch05Spots = sp;
     }
     return m;
@@ -357,106 +366,138 @@
    * Rooms: chapter objects + staging spots on top of the shared maps
    * ------------------------------------------------------------------ */
   var MAPS = {};
+  /** A copy of one built-in entity of a shared map (to re-add it with a condition / patched fields). */
+  function sharedEntity(mapName, id, patch) {
+    var m = G.shared.maps[mapName]; if (!m) return null;
+    var e = null;
+    (m.objects || []).concat(m.npcs || []).forEach(function (o) { if (o.id === id) e = o; });
+    if (!e) return null;
+    e = G.cloneDef(e); e.sh = true; e.keepAt = true;
+    Object.keys(patch || {}).forEach(function (k) { e[k] = patch[k]; });
+    return e;
+  }
+  function compact(arr) { return arr.filter(function (x) { return !!x; }); }
+
+  // Entities marked fb:true carry the SHARED ids, so code like waitForInteract('window') works on both.
   MAPS[ROOMS.luna] = house('luna', {
     objects: [
-      { id: 'ch05_window', at: [4, 0], sharedProp: 'sparkle', solid: false, examine: [{ think: 'The window is sealed. Down below, almond blossoms. Pink, in January. Everything here is pretty on purpose.' }] },
-      { id: 'ch05_photo', at: [6, 1], prop: 'photo', examine: [{ think: 'Waverly. Brown curls sticking out like static. Eleven years old and already braver than me.' }] },
-      { id: 'ch05_tablet', at: [1, 1], fb: true, examine: [{ think: 'The wall tablet. "Curated memories" of Waverly on a loop. Someone at DPE picked which of my daughter\'s faces I get to see.' }] },
-      { id: 'ch05_desk', at: [1, 6], fb: true, examine: 'A DPE pen and the penguin booklet. "Rule 4: Gratitude is the first step to Redemption."' },
-      { id: 'ch05_eye', at: [8, 0], prop: 'camera', fb: true, examine: [{ think: 'The smoke detector has a lens. I\'ve started calling it Eye. Good night, Eye.' }] }
+      { id: 'window', at: [4, 0], fb: true, examine: [{ think: 'The window is sealed. Down below, almond blossoms. Pink, in January. Everything here is pretty on purpose.' }] },
+      { id: 'ch05_photo', at: [3, 1], prop: 'photo', solid: false, examine: [{ think: 'Waverly. Brown curls sticking out like static. Eleven years old and already braver than me.' }] },
+      { id: 'tablet', at: [1, 1], fb: true, examine: [{ think: 'The wall tablet. "Curated memories" of Waverly on a loop. Someone at DPE picked which of my daughter\'s faces I get to see.' }] },
+      { id: 'desk', at: [1, 6], fb: true, examine: 'A DPE pen and the penguin booklet. "Rule 4: Gratitude is the first step to Redemption."' },
+      { id: 'smoke_detector', at: [8, 0], prop: 'camera', fb: true, examine: [{ think: 'The smoke detector has a lens. I\'ve started calling it Eye. Good night, Eye.' }] }
     ],
-    spots: { entry: [4, 3], window: [4, 1], door: [5, 7], bed: [6, 2] }
+    spots: { entry: { at: [4, 7], mark: 'door' }, window: { at: [4, 1], mark: 'window_spot' }, door: { at: [4, 7], mark: 'door' }, bed: { at: [6, 3], mark: 'bed' } }
   }, FB.luna);
 
   MAPS[ROOMS.library] = house('library', {
     objects: [
-      { id: 'ch05_newberry', at: [6, 4], prop: 'ch05book', examine: [{ think: 'The Newberry Twins. I read the first three in a few hours before I realised I\'d have to slow down to make them last.' }, { think: 'Does it matter? I might not be alive this time next week.' }] },
-      { id: 'ch05_sign', at: [10, 11], prop: 'sign', examine: '"Books may not be removed from the library. Violators will face punitive measures." The letters glow fluorescent blue.' },
-      { id: 'ch05_falsville', at: [2, 1], fb: true, examine: [{ think: 'The Falsville series. Waverly made me do all the voices.' }] },
-      { id: 'ch05_spine', at: [10, 1], fb: true, examine: [{ think: 'One spine has no title. Just a tiny glass eye where the title should be. Even the books are watching.' }] }
+      { id: 'library_newberry', at: [4, 1], prop: 'ch05book', fb: true },
+      { id: 'library_sign', at: [5, 0], prop: 'sign', fb: true, examine: '"Books may not be removed from the library. Violators will face punitive measures." The letters glow fluorescent blue.' },
+      { id: 'library_falsville', at: [3, 1], fb: true, examine: [{ think: 'The Falsville series. Waverly made me do all the voices.' }] },
+      { id: 'library_cam', at: [7, 1], fb: true, examine: [{ think: 'One spine has no title. Just a tiny glass eye where the title should be. Even the books are watching.' }] }
     ],
-    spots: { entry: [6, 11], isaiah: [3, 3], luna: [2, 4], ginerva: [6, 11], ginervaStop: [6, 9], read: [5, 4] }
+    spots: { entry: [6, 10], isaiah: { at: [7, 6], mark: 'isaiah_chair' }, luna: [6, 6], ginerva: [6, 10], ginervaStop: [6, 8], read: { at: [4, 2], mark: 'childrens_section' } }
   }, FB.library);
 
   MAPS[ROOMS.kitchen] = house('kitchen', {
     objects: [
-      { id: 'ch05_kettle', at: [9, 1], prop: 'teacup', examine: [{ think: 'Annette\'s tea station. Eleven tins, all labelled in her spidery hand. One just says "for later".' }] },
-      { id: 'ch05_fridge', at: [11, 1], fb: true, examine: 'Real meat. Steaks, a whole ham, sausages in a glass drawer. Waverly and I lived on bread heels for a month last winter.' },
-      { id: 'ch05_bleach', at: [1, 4], prop: 'bucket', examine: [{ think: 'Two squirts of bleach, a quick wipe, and you have yourself a gleaming countertop. Years of tiny sticky hands taught me that.' }] },
-      { id: 'ch05_kcam', at: [7, 0], prop: 'camera', fb: true, examine: [{ think: 'One camera. A little red dot that never blinks.' }] }
+      { id: 'kitchen_kettle', at: [8, 1], prop: 'teacup', fb: true, examine: [{ think: 'Annette\'s tea station. Eleven tins, all labelled in her spidery hand. One just says "for later".' }] },
+      { id: 'kitchen_fridge', at: [9, 1], fb: true, examine: 'Real meat. Steaks, a whole ham, sausages in a glass drawer. Waverly and I lived on bread heels for a month last winter.' },
+      { id: 'ch05_bleach', at: [1, 2], prop: 'bucket', examine: [{ think: 'Two squirts of bleach, a quick wipe, and you have yourself a gleaming countertop. Years of tiny sticky hands taught me that.' }] }
     ],
-    spots: { entry: [6, 9], kessie: [4, 4], annette: [9, 2], kessieTea: [11, 4], luna: [6, 4] }
+    spots: { entry: [5, 1], kessie: { at: [3, 5], mark: 'island_west' }, annette: { at: [8, 2], mark: 'tea_station' }, kessieTea: [6, 2], luna: [5, 5] }
   }, FB.kitchen);
 
   MAPS[ROOMS.dining] = house('dining', {
     objects: [
-      { id: 'ch05_stew', at: [8, 4], fb: true, examine: [{ think: 'Kessie\'s stew. Meaty, with a tinge of spice. I have to stop myself tipping the whole bowl into my mouth.' }] }
+      { id: 'dining_table', at: [7, 4], fb: true, examine: [{ think: 'Kessie\'s stew. Meaty, with a tinge of spice. I have to stop myself tipping the whole bowl into my mouth.' }] }
     ],
-    spots: { entry: [8, 6], luna: [8, 5], carol: [6, 3], john: [7, 3], delphin: [9, 3], annette: [11, 5], isaiah: [5, 5], kessie: [13, 4] }
+    spots: { entry: [6, 1], luna: [6, 5], carol: [4, 2], john: [6, 2], delphin: [8, 2], annette: [10, 5], isaiah: [4, 5], kessie: { at: [12, 4], mark: 'head_east' } }
   }, FB.dining);
 
   MAPS[ROOMS.lounge] = house('lounge', {
-    objects: [
-      { id: 'ch05_poster', at: [3, 0], prop: 'poster', examine: [{ think: '"Mercy will be granted to those that atone." The Great Leader stands above the words. Somebody has drawn him a very small pair of horns.' }] },
-      { id: 'ch05_mirror', at: [11, 1], prop: 'ch05mirror', if: 'ch05_day >= 2', examine: [{ think: 'A full-length mirror, new since yesterday. A producer must have decided we weren\'t polling pretty enough.' }] },
-      { id: 'ch05_lcam', at: [14, 0], prop: 'camera', fb: true, examine: [{ think: 'The red dot in the corner of the ceiling. Blinking. Someone is watching live.' }] }
-    ],
-    spots: { entry: [7, 9], delphin: [5, 6], kessie: [9, 6], carol: [7, 6], john: [1, 8], lunaJohn: [2, 8], chair: [8, 6], luna: [7, 7], mirror: [11, 2] }
+    remove: ['lounge_mirror'],          // the mirror only arrives on Day 4 (Wednesday)
+    objects: compact([
+      sharedEntity('house_lounge', 'lounge_mirror', { if: 'ch05_day >= 2', examine: [{ think: 'A full-length mirror, new since yesterday. A producer must have decided we weren\'t polling pretty enough.' }] }),
+      { id: 'lounge_mirror', at: [12, 4], prop: 'ch05mirror', fb: true, if: 'ch05_day >= 2', examine: [{ think: 'A full-length mirror, new since yesterday. A producer must have decided we weren\'t polling pretty enough.' }] },
+      { id: 'ch05_poster', at: [3, 0], prop: 'poster', wall: true, examine: [{ think: '"Mercy will be granted to those that atone." The Great Leader stands above the words. Somebody has drawn him a very small pair of horns.' }] },
+      { id: 'lounge_cam1', at: [2, 0], prop: 'camera', fb: true, examine: [{ think: 'The red dot in the corner of the ceiling. Blinking. Someone is watching live.' }] }
+    ]),
+    spots: { entry: [6, 8], delphin: [4, 5], kessie: [9, 5], carol: [6, 5], john: [1, 7], lunaJohn: [2, 7], chair: [7, 2], luna: [6, 7], mirror: { at: [12, 5], mark: 'mirror_front' } }
   }, FB.lounge);
 
   MAPS[ROOMS.arcade] = house('arcade', {
     objects: [
-      { id: 'ch05_wheel', at: [2, 1], prop: 'ch05cab', color: '#c9a24a', examine: 'A wheel of fortune. Every slice says a different word for "grateful".' },
-      { id: 'ch05_booth', at: [5, 1], prop: 'ch05cab', color: '#7a1218' },
-      { id: 'ch05_jackpot', at: [8, 1], prop: 'ch05cab', color: '#2a6a3a' },
-      { id: 'ch05_dance', at: [11, 1], prop: 'ch05cab', color: '#7a2a8a' },
-      { id: 'ch05_pinball', at: [11, 5], prop: 'ch05cab', color: '#2a4a8a', examine: 'Pinball. The flippers are shaped like little gavels.' }
+      { id: 'arcade_wheel', at: [2, 1], prop: 'ch05cab', color: '#c9a24a', fb: true, examine: 'A wheel of fortune. Every slice says a different word for "grateful".' },
+      { id: 'arcade_shooting', at: [5, 1], prop: 'ch05cab', color: '#7a1218', fb: true },
+      { id: 'arcade_jackpot', at: [2, 6], prop: 'ch05cab', color: '#2a6a3a', fb: true },
+      { id: 'arcade_dance', at: [9, 6], prop: 'ch05cab', color: '#7a2a8a', fb: true },
+      { id: 'arcade_pinball', at: [9, 1], prop: 'ch05cab', color: '#2a4a8a', fb: true, examine: 'Pinball. The flippers are shaped like little gavels.' }
     ],
-    spots: { entry: [6, 9], isaiah: [3, 7], delphin: [5, 2], luna: [7, 4], overhear: [8, 7] }
+    spots: { entry: [6, 8], isaiah: [6, 6], delphin: [5, 2], luna: [7, 4], overhear: [7, 5] }
   }, FB.arcade);
 
   var MANNEQUIN = { name: 'Mannequin', skin: '#efe6e0', hair: '#d22a2a', hairStyle: 'curly', outfit: '#b02a3a', outfit2: '#202028', style: 'suit' };
+  function aud(seed) { return G.shared.extra ? G.shared.extra('audience', seed) : G.Sprites.randomSpec(seed); }
+  // The holoscreen shows the two names and SAVE counts during the public vote only.
+  var HOLO = {
+    left: function () { return G.Game && G.Game.state && G.Game.state.flags.ch05_holo ? 'John' : null; },
+    right: function () { return G.Game && G.Game.state && G.Game.state.flags.ch05_holo ? 'Carol' : null; },
+    leftVotes: function () { var f = G.Game && G.Game.state && G.Game.state.flags; return f && f.ch05_publicVote ? '200,521' : '0'; },
+    rightVotes: function () { var f = G.Game && G.Game.state && G.Game.state.flags; return f && f.ch05_publicVote ? '200,649' : '0'; },
+    subtitle: 'PRIVATE VOTE • WEEK 1'
+  };
   MAPS[ROOMS.court] = house('court', {
+    remove: ['cage', 'holoscreen'],     // the Cage is wheeled in only for the public vote
     npcs: [
-      { id: 'ch05_jury1', at: [2, 2], spec: MANNEQUIN, facing: 'right', turn: false, talk: 'Painted tears. A clown smile. It doesn\'t blink.' },
-      { id: 'ch05_jury2', at: [3, 2], spec: MANNEQUIN, facing: 'right', turn: false, talk: '...' },
-      { id: 'ch05_jury3', at: [2, 4], spec: MANNEQUIN, facing: 'right', turn: false, talk: '...' },
-      { id: 'ch05_jury4', at: [3, 4], spec: MANNEQUIN, facing: 'right', turn: false, talk: '...' },
-      { id: 'ch05_aud1', at: [2, 12], spec: G.shared.extra ? G.shared.extra('audience', 51) : G.Sprites.randomSpec(51), facing: 'up', turn: false },
-      { id: 'ch05_aud2', at: [6, 12], spec: G.shared.extra ? G.shared.extra('audience', 52) : G.Sprites.randomSpec(52), facing: 'up', turn: false },
-      { id: 'ch05_aud3', at: [9, 12], spec: G.shared.extra ? G.shared.extra('audience', 53) : G.Sprites.randomSpec(53), facing: 'up', turn: false },
-      { id: 'ch05_aud4', at: [14, 12], spec: G.shared.extra ? G.shared.extra('audience', 54) : G.Sprites.randomSpec(54), facing: 'up', turn: false },
-      { id: 'ch05_aud5', at: [18, 12], spec: G.shared.extra ? G.shared.extra('audience', 55) : G.Sprites.randomSpec(55), facing: 'up', turn: false },
-      { id: 'ch05_aud6', at: [21, 12], spec: G.shared.extra ? G.shared.extra('audience', 56) : G.Sprites.randomSpec(56), facing: 'up', turn: false }
+      { id: 'jury_1', at: [1, 3], spec: MANNEQUIN, fb: true, facing: 'right', turn: false, talk: 'Painted tears. A clown smile. It doesn\'t blink.' },
+      { id: 'jury_2', at: [2, 4], spec: MANNEQUIN, fb: true, facing: 'right', turn: false, talk: '...' },
+      { id: 'jury_3', at: [3, 3], spec: MANNEQUIN, fb: true, facing: 'right', turn: false, talk: '...' },
+      { id: 'jury_4', at: [4, 4], spec: MANNEQUIN, fb: true, facing: 'right', turn: false, talk: '...' },
+      { id: 'ch05_aud1', at: [3, 16], spec: aud(51), fb: true, facing: 'up', turn: false },
+      { id: 'ch05_aud2', at: [9, 16], spec: aud(52), fb: true, facing: 'up', turn: false },
+      { id: 'ch05_aud3', at: [14, 16], spec: aud(53), fb: true, facing: 'up', turn: false }
     ],
-    objects: [
-      { id: 'ch05_mic', at: [12, 5], prop: 'mic', solid: false, examine: 'The microphone. Seven of us will stand here today and name someone to die.' },
-      { id: 'ch05_cage', at: [21, 6], prop: 'ch05cage', layer: 1, if: 'ch05_cageInCourt', examine: [{ think: 'A cage fit for a Saint Bernard. On wheels. Chains at each corner.' }] },
-      { id: 'ch05_box', at: [13, 4], prop: 'ch05toaster', examine: 'A ballot box shaped like a toaster. Somebody thought that was funny.' }
-    ],
+    objects: compact([
+      sharedEntity('house_gym_courtroom', 'holoscreen', HOLO),
+      { id: 'mic', at: [10, 6], prop: 'mic', fb: true, examine: 'The microphone. Seven of us will stand here today and name someone to die.' },
+      { id: 'cage', at: [10, 13], prop: 'ch05cage', sharedProp: 'gx_cage', keepAt: true, layer: 1, if: 'ch05_cageInCourt', examine: [{ think: 'A cage fit for a Saint Bernard. On wheels. Chains at each corner.' }] },
+      { id: 'ch05_box', at: [11, 6], prop: 'ch05toaster', examine: 'A ballot box shaped like a toaster. Somebody thought that was funny.' }
+    ]),
     spots: {
-      entry: [11, 12], mic: [11, 5], trader: { at: [11, 2], mark: 'judge_bench' },
-      defLeft: { at: [6, 6], mark: 'defendant_left' }, defRight: { at: [17, 6], mark: 'defendant_right' },
-      cage: { at: [21, 6], mark: 'cage' },
-      seat_annette: [6, 9], seat_carol: [7, 9], seat_john: [8, 9], seat_kessie: [9, 9], seat_isaiah: [10, 9], seat_delphin: [11, 9], seat_luna: [12, 9],
-      line1: [11, 13], ginerva: [4, 9], tb1: [20, 5], tb2: [20, 8], camera: [13, 7]
+      entry: { at: [1, 9], mark: 'door_in' }, mic: { at: [10, 7], mark: 'mic' }, trader: { at: [10, 2], mark: 'judge_bench' },
+      host: { at: [10, 5], mark: 'host_floor' },
+      defLeft: { at: [8, 8], mark: 'defendant_left' }, defRight: { at: [12, 8], mark: 'defendant_right' },
+      cage: { at: [10, 13], mark: 'cage' },
+      seat_annette: { at: [17, 4], mark: 'contestant_1' }, seat_carol: { at: [17, 5], mark: 'contestant_2' },
+      seat_john: { at: [17, 6], mark: 'contestant_3' }, seat_kessie: { at: [17, 7], mark: 'contestant_4' },
+      seat_isaiah: { at: [17, 8], mark: 'contestant_5' }, seat_delphin: { at: [17, 9], mark: 'contestant_6' },
+      seat_luna: { at: [17, 10], mark: 'contestant_7' },
+      ginerva: [18, 12], tb1: { at: [7, 12], mark: 'tb_left' }, tb2: { at: [13, 12], mark: 'tb_right' }, camera: [14, 9]
     }
   }, FB.court);
 
   MAPS[ROOMS.dolls] = house('dolls', {
     objects: [
-      { id: 'ch05_samantha', at: [8, 1], prop: 'ch05samantha', examine: [{ say: 'delphin', text: 'Careful. She bites. Only on Tuesdays.' }] },
-      { id: 'ch05_dwindow', at: [7, 0], fb: true, examine: 'A window over a three-car parking lot. It\'s raining. It\'s always raining up here.' },
-      { id: 'ch05_cage2', at: [13, 6], prop: 'ch05cage', layer: 1, if: 'ch05_cageInDolls', examine: [{ think: 'John hangs from the centre like a cricket splayed on a spider\'s web.' }] },
-      { id: 'ch05_toaster', at: [9, 6], prop: 'ch05toaster', examine: 'The toaster ballot box from the courtroom, carried up here like a relic.' }
+      { id: 'samantha', at: [8, 0], prop: 'ch05samantha', fb: true, examine: [{ say: 'delphin', text: 'Careful. She bites. Only on Tuesdays.' }] },
+      { id: 'window_rain', at: [2, 0], fb: true, examine: 'A window over a three-car parking lot. It\'s raining. It\'s always raining up here.' },
+      { id: 'ch05_toaster', at: [5, 2], prop: 'ch05toaster', examine: 'The toaster ballot box from the courtroom, carried up here like a relic.' }
     ],
     spots: {
-      entry: [8, 9], trader: [8, 6], cage: [13, 6], door: [8, 10],
-      seat_annette: [5, 4], seat_carol: [7, 4], seat_john: [9, 4], seat_kessie: [11, 4],
-      seat_isaiah: [5, 8], seat_delphin: [7, 8], seat_luna: [9, 8], seat_x: [11, 8],
-      tb1: [12, 5], tb2: [12, 7], tbL: [7, 2], tbR: [9, 2], top: [9, 2], camera: [14, 8]
+      entry: [3, 12], trader: { at: [8, 10], mark: 'trader_stand' }, cage: [14, 6], door: { at: [3, 12], mark: 'door' },
+      seat_annette: { at: [7, 3], mark: 'chair_1' }, seat_carol: { at: [10, 3], mark: 'chair_2' },
+      seat_john: { at: [12, 5], mark: 'chair_3' }, seat_kessie: { at: [12, 7], mark: 'chair_4' },
+      seat_x: { at: [10, 9], mark: 'chair_5' }, seat_isaiah: { at: [6, 9], mark: 'chair_6' },
+      seat_delphin: { at: [4, 7], mark: 'chair_7' }, seat_luna: { at: [4, 5], mark: 'chair_8' },
+      tb1: [13, 4], tb2: [13, 8], tbL: [7, 1], tbR: [10, 1], top: [9, 1], camera: [15, 10]
     }
   }, FB.dolls);
+
+  /** The shared courtroom's contestants' bench faces west; the fallback bench faces north. */
+  /** Camera target that frames the bench, the holoscreen and the defendants' chairs. */
+  function stageView() { var m = spot('court', 'mic'); return [m[0], Math.max(0, m[1] - 1)]; }
+  function seatFace() { return G.shared.has(ROOMS.court) ? 'left' : 'up'; }
 
   function spot(roomKey, name) {
     var m = MAPS[ROOMS[roomKey]];
@@ -623,21 +664,21 @@
           if (susp > 0.05) { R.rect(lx - 6, ly - 52, 26, 3, '#000', 0.6); R.rect(lx - 6, ly - 52, 26 * Math.min(1, susp), 3, P.red); }
           ctx.header('THE BREAK: EAVESDROP', 'SPOTTED ' + spotted + ' / 3');
           // transcript
-          R.panel(196, 30, 182, 98, { alpha: 0.85 });
-          R.text('OVERHEARD', 202, 34, { size: 7, color: P.dim });
-          var shown = EAVES_LINES.slice(Math.max(0, heard - 4), heard), yy2 = 46;
+          R.panel(6, 28, 186, 84, { alpha: 0.88 });
+          R.text('OVERHEARD', 12, 32, { size: 7, color: P.dim });
+          var shown = EAVES_LINES.slice(Math.max(0, heard - 3), heard), yy2 = 43;
           shown.forEach(function (l) {
-            var lines = R.wrap((l[1] === 'carol' ? 'CAROL: ' : 'JOHN: ') + l[2], 168, 7, 'sans', '');
-            lines.forEach(function (ln) { R.text(ln, 202, yy2, { size: 7, font: 'sans', style: '', color: l[1] === 'carol' ? '#ffb0c8' : '#d8d0b0' }); yy2 += 9; });
+            var lines = R.wrap((l[1] === 'carol' ? 'CAROL: ' : 'JOHN: ') + l[2], 172, 7, 'sans', '');
+            lines.forEach(function (ln) { R.text(ln, 12, yy2, { size: 7, font: 'sans', style: '', color: l[1] === 'carol' ? '#ffb0c8' : '#d8d0b0' }); yy2 += 9; });
             yy2 += 2;
           });
-          if (heard < EAVES_LINES.length) R.text('...closer...', 202, Math.min(yy2, 118), { size: 7, color: P.faint, style: 'italic' });
+          if (heard < EAVES_LINES.length) R.text('...closer...', 12, Math.min(yy2, 102), { size: 7, color: P.faint, style: 'italic' });
           if (msgT > 0 && msg) {
             var ml = R.wrap(msg, W - 40, 8, 'sans', '');
             R.rect(0, H - 40, W, 12 + ml.length * 10, '#000', 0.8);
             ml.forEach(function (ln, j) { R.text(ln, W / 2, H - 36 + j * 10, { size: 8, align: 'center', font: 'sans', style: '', color: '#fff' }); });
           }
-          ctx.footer('UP/DOWN climb  ·  Move only while her back is turned  ·  When she turns, be on a DOLL step');
+          ctx.footer('UP/DOWN climb · move while her back is turned · stop on a doll step');
         });
       });
     }
@@ -968,11 +1009,11 @@
     stage(api, 'arcade', [{ id: 'isaiah', facing: 'up' }, { id: 'delphin', facing: 'up' }]);
     api.onInteract('isaiah', [['isaiah', 'The pattern table. It gives you a sequence and you guess the next number. I\'ve never lost. It\'s a little sad, actually.']]);
     api.onInteract('delphin', [['delphin', 'The targets say "I OPPOSE THE GREAT LEADER". You get points for shooting them. I keep missing on purpose.', 'smug']]);
-    api.onInteract('ch05_booth', async function (api) {
+    api.onInteract('arcade_shooting', async function (api) {
       var q = await api.minigame('qte', { mode: 'timing', rounds: 3, title: 'LOYALTY RANGE', prompt: 'Shoot the "I OPPOSE THE GREAT LEADER" targets' });
       await api.think(q.success ? 'Bullseye. The machine plays the anthem. I feel sick.' : 'I miss. The machine boos. A recorded voice says "Disappointing."');
     });
-    api.onInteract('ch05_dance', async function (api) {
+    api.onInteract('arcade_dance', async function (api) {
       var q = await api.minigame('qte', { mode: 'sequence', rounds: 3, length: 4, time: 3, title: 'DANCE OF GRATITUDE', prompt: 'Hit the arrows' });
       if (q.success) api.approvalAdd(1);
       await api.think(q.success ? 'The screen flashes GRATEFUL! GRATEFUL! Somewhere a producer marks me down as "fun".' : 'I trip over my own feet. Delphin applauds.');
@@ -980,9 +1021,9 @@
     await go(api, 'arcade');
     if (n === 0) await api.think('The arcade. Flashing lights, cheerful jingles, and every machine is a loyalty test.');
     api.objective('Play the jackpot machine (or look around)');
-    await api.waitForInteract('ch05_jackpot');
+    await api.waitForInteract('arcade_jackpot');
     api.objective(null);
-    var j = await api.minigame('qte', { mode: 'timing', rounds: 3, speed: 1.2, title: 'JACKPOT', prompt: 'Pull the lever on the stars' });
+    var j = await api.minigame('qte', { mode: 'timing', rounds: 3, speed: 1.2, title: 'JACKPOT', prompt: 'Pull the lever when the marker hits the green' });
     if (j.success) {
       api.sound('applause');
       await api.narrate('The machine erupts: CONGRATULATIONS, WINNER. Coins that aren\'t real pour into a tray that doesn\'t open.');
@@ -1331,7 +1372,7 @@
     await ranking(api, 2);
     await api.think('Tomorrow is the private vote. And after that, the first execution. I pace faster. It doesn\'t help.');
     api.objective('Look out of the window');
-    await api.waitForInteract('ch05_window');
+    await api.waitForInteract('window');
     api.objective(null);
     await api.slides([
       { style: 'black', text: 'The trees sway. Pink blossoms float down, leaving the branches bare.', draw: drawWindow },
@@ -1380,7 +1421,7 @@
       { think: 'I still hope with all my heart that Waverly isn\'t watching. I know better.' }
     ]);
     api.objective('Read until you\'re called');
-    await api.waitForInteract('ch05_newberry');
+    await api.waitForInteract('library_newberry');
     api.objective(null);
     await api.run([
       'The Newberry Twins, Book 9: The Newberry Twins Meet a Lion. I make it four pages before the door opens.',
@@ -1404,10 +1445,11 @@
       { id: 'tb_hippo', spot: 'tb1', facing: 'left', turn: false },
       { id: 'tb_boar', spot: 'tb2', facing: 'left', turn: false },
       { id: 'cameraman', spot: 'camera', facing: 'up' },
-      { id: 'john', spot: 'seat_john', facing: 'up' }
-    ].concat(seats.map(function (s) { return { id: s, spot: 'seat_' + s, facing: 'up' }; })));
+      { id: 'john', spot: 'seat_john', facing: seatFace() }
+    ].concat(seats.map(function (s) { return { id: s, spot: 'seat_' + s, facing: seatFace() }; })));
     await api.fadeOut(300);
-    await go(api, 'court', 'seat_luna', 'up');
+    await go(api, 'court', 'seat_luna', seatFace());
+    await api.pan(stageView(), 0);
     api.lockPlayer();
     await api.run([
       'The gym has been dressed as a courtroom. A two-storey judge\'s bench. A jury box of painted mannequins with clown smiles. Two chairs centre stage, one with handcuffs on the arm. And my own face, twenty feet tall on the screen, pupils dilated with fear.',
@@ -1431,7 +1473,7 @@
     var mic = spot('court', 'mic');
 
     async function walkUp(id) { await api.move(id, mic); api.face(id, 'down'); }
-    async function walkBack(id) { await api.move(id, spot('court', 'seat_' + id)); api.face(id, 'up'); }
+    async function walkBack(id) { await api.move(id, spot('court', 'seat_' + id)); api.face(id, seatFace()); }
 
     // Annette
     await walkUp('annette');
@@ -1477,8 +1519,9 @@
     // Luna
     await api.say('trader', 'And finally, Miss Luna, our competition winner. Come on down.', { mood: 'smug' });
     api.unlockPlayer();
+    await api.cameraReset(500);
     api.objective('Walk to the microphone');
-    await api.waitForInteract('ch05_mic');
+    await api.waitForInteract('mic');
     api.objective(null);
     api.lockPlayer();
     await api.movePlayer(mic);
@@ -1633,7 +1676,7 @@
       { id: 'kessie', spot: 'seat_kessie', facing: 'down' }, { id: 'isaiah', spot: 'seat_isaiah', facing: 'up' },
       { id: 'delphin', spot: 'seat_delphin', facing: 'up' }
     ]);
-    api.addObject({ id: 'ch05_cageNow', at: spot('dolls', 'cage'), prop: 'ch05cage', layer: 1, solid: false });
+    api.addObject({ id: 'ch05_cageNow', at: spot('dolls', 'cage'), prop: G.lookup('props', 'gx_cage') ? 'gx_cage' : 'ch05cage', layer: 1, solid: false });
     await api.pan('john', 700);
     await api.run([
       'Wheels pound against the floor. Two True Believers drag in a cage fit for a Saint Bernard. John hangs from the centre, wrists and ankles chained to each corner, like a cricket splayed on a spider\'s web.',
@@ -1805,7 +1848,7 @@
 
   /* ---------- PUBLIC VOTE 1 (courtroom, SAVE polarity) ---------- */
   async function publicVote(api) {
-    api.set('ch05_cageInCourt', true);
+    api.set({ ch05_cageInCourt: true, ch05_holo: true });
     var seats = ['annette', 'kessie', 'isaiah', 'delphin'];
     stage(api, 'court', [
       { id: 'trader', spot: 'trader', facing: 'down' },
@@ -1814,9 +1857,10 @@
       { id: 'cameraman', spot: 'camera', facing: 'up' },
       { id: 'john', spot: 'defLeft', facing: 'down' },
       { id: 'carol', spot: 'defRight', facing: 'down' }
-    ].concat(seats.map(function (s) { return { id: s, spot: 'seat_' + s, facing: 'up' }; })));
+    ].concat(seats.map(function (s) { return { id: s, spot: 'seat_' + s, facing: seatFace() }; })));
     await api.fadeOut(400);
-    await go(api, 'court', 'seat_luna', 'up');
+    await go(api, 'court', 'seat_luna', seatFace());
+    await api.pan(stageView(), 0);
     api.lockPlayer();
     api.onAir(true);
     api.approval(true);
@@ -1918,6 +1962,7 @@
       'The moment his head crosses the threshold he stops fighting. He crumples to the floor, tucks his knees to his chest, and rocks. Back and forth. Over and over.',
       { think: 'My heart burns alongside his. All the way home.' }
     ]);
+    await api.cameraReset(500);
     api.onAir(false);
     api.approval(false);
     api.unlockPlayer();
@@ -1940,7 +1985,7 @@
     },
 
     start: async function (api) {
-      api.set({ ch05_day: 0, ch05_tasksDone: 0, ch05_warned: false, ch05_cageInCourt: false, ch05_cageInDolls: false });
+      api.set({ ch05_day: 0, ch05_tasksDone: 0, ch05_warned: false, ch05_cageInCourt: false, ch05_cageInDolls: false, ch05_holo: false, ch05_publicVote: null });
       ['library', 'kitchen', 'lounge', 'arcade', 'tea', 'room'].forEach(function (k) { api.set('ch05_v_' + k, 0); });
       Object.keys(TASKS).forEach(function (t) { api.set(tflag(t), 'none'); });
 

@@ -186,7 +186,7 @@
     /* --- Doll Room: the last thirty minutes --- */
     maps[H.doll] = room(H.doll, {
       npcs: [
-        { id: 'delphin', at: DOLL.delphin, spec: 'delphin', facing: 'left' },
+        { id: 'delphin', at: DOLL.delphin, spec: 'delphin', facing: 'left', talk: function (api) { return farewell(api); } },
         { id: 'frog', at: DOLL.frog, spec: 'frog', facing: 'up', turn: false,
           talk: [{ narrate: 'Frog does not answer. The gold mask tilts, a fraction, toward the clock on its wrist.' }] },
         { id: 'judge_doll', at: DOLL.judge, spec: 'judge_white', facing: 'down', if: '!ch13_judgeLeft' }
@@ -250,8 +250,8 @@
     /* --- Screening room --- */
     var scr = room(H.screen, {
       npcs: [
-        { id: 's_isaiah', at: [3, 2], spec: 'isaiah', facing: 'up', turn: false, if: '!ch13_isaiahFled' },
-        { id: 's_annette', at: [8, 4], spec: 'annette', facing: 'up', turn: false }
+        { id: 's_isaiah', at: mark(H.screen, 'seat_1', [3, 2]), spec: 'isaiah', facing: 'up', turn: false, if: '!ch13_isaiahFled' },
+        { id: 's_annette', at: mark(H.screen, 'seat_6', [8, 4]), spec: 'annette', facing: 'up', turn: false }
       ]
     });
     scr.npcs.forEach(function (n) { if (/^s_/.test(n.id)) n.at = snap(scr, n.at); });
@@ -299,17 +299,23 @@
     /* --- Luna's room --- */
     maps[H.room] = room(H.room, {
       npcs: [{ id: 'trader_sun', at: mark(H.room, 'door', [4, 8]), spec: 'trader_mop', facing: 'up', if: 'ch13_phase == sunday && !ch13_bookGiven' }],
-      objects: [
-        { id: 'ch13_book', at: mark(H.room, 'nightstand', [6, 1]), prop: 'book13', solid: false, layer: 1, if: 'ch13_bookGiven',
-          examine: [{ think: 'Falsville. The cover is new. The spine has never been cracked.' }] }
-      ]
+      // 'desk' is a fixture id in EVERY shared bedroom, so waitForInteract('desk') would fire in Delphin's room too.
+      remove: ['desk'],
+      objects: [{ id: 'ch13_desk', at: (function () { var d = UPX && G.shared.data.upstairs.find && G.shared.data.upstairs.find(H.room, 'desk'); return d ? d.at : [1, 7]; })(),
+        examine: [{ think: 'A writing desk. Everything on it belongs to them.' }] }]
     });
 
     /* --- Delphin's room (eyeliner) --- */
     var dr = room(H.delphinRoom, {
-      objects: [{ id: 'ch13_eyeliner', at: [2, 2], prop: 'eyeliner', solid: false, if: '!ch13_hasEyeliner' }]
+      objects: [{ id: 'ch13_eyeliner', at: [2, 2], prop: 'eyeliner', solid: false, if: '!ch13_hasEyeliner',
+        examine: async function (api) {
+          await api.think('His liner pencil, worn down to a stub. He did his eyes every single morning, even the morning of the maze.');
+          await api.think('I\'m sorry. I\'m borrowing it. You\'d have insisted.');
+          api.set('ch13_hasEyeliner', true);
+          api.remove('ch13_eyeliner');
+        } }]
     });
-    dr.objects.forEach(function (o) { if (o.id === 'ch13_eyeliner' && !dr.placeholder) o.at = snap(dr, o.at); });
+    dr.objects.forEach(function (o) { if (o.id === 'ch13_eyeliner' && !dr.placeholder) o.at = mark(H.delphinRoom, 'desk', [2, 2]); });   // on the floor by his desk: stand on it to pick it up
     maps[H.delphinRoom] = dr;
 
     gateExits(maps);
@@ -527,7 +533,6 @@
     await api.think('He says it like he is handing us a gift. Thirty minutes. Then one of us dies.');
     await api.think('From the very first day I swore I would not get attached to anyone in here. And then a boy who used to teach me how to pick locks at Columbus walked back into my life with blue hair and a joke for everything.');
 
-    api.onInteract('delphin', farewell);
     await api.until(function (f) { return f.ch13_farewellDone; }, { objective: 'Thirty minutes with Delphin (30 left)', targets: ['delphin'] });
     api.objective(null);
     await api.narrate('Frog raps a gloved knuckle on the door frame. Time.');
@@ -671,7 +676,7 @@
     api.lockPlayer();
     await api.fadeIn(800);
     api.onAir(true);
-    api.lowerThird('LIVE', 'The execution of Delphin Neutrino');
+    api.lowerThird('DELPHIN NEUTRINO', 'Execution • live from the Amphitheatre', 4500);
     await api.narrate('This week\'s show has very special guests. The Council of Four, the governing body of the True Believers, in crimson. Most people call them the Four Horsemen. Never in public.');
     await api.pan('a_hyena', 900);
     await api.narrate('Beside them, in a navy suit with a dove on his lapel, Senator Jeremy Humbert smiles warmly at the families around him and shakes a little girl\'s hand.');
@@ -770,7 +775,7 @@
   async function sceneScreening(api) {
     api.set('ch13_phase', 'screening');
     var scr = G.lookup('maps', H.screen) || {};
-    var at = snap(scr.tiles ? scr : FALLBACK[H.screen], [6, 2]);
+    var at = has(H.screen) ? mark(H.screen, 'seat_2', [3, 3]) : [6, 2];
     await api.goRoom(H.screen, { at: at, facing: 'up', fade: false });
     api.lockPlayer();
     await api.fadeIn(900);
@@ -949,17 +954,17 @@
     await api.think('He can\'t stand up to his father on his own. Somebody needs to tell him to.');
 
     if (api.get('f_has_pen', true)) {
-      api.objective('Write the note at your desk', { target: 'desk' });
-      await api.waitForInteract('desk');
+      api.objective('Write the note at your desk', { target: 'ch13_desk' });
+      await api.waitForInteract('ch13_desk');
       await writeNote(api, 'pen');
     } else {
-      api.objective('Write the note at your desk', { target: 'desk' });
-      await api.waitForInteract('desk');
+      api.objective('Write the note at your desk', { target: 'ch13_desk' });
+      await api.waitForInteract('ch13_desk');
       await api.think('Nothing to write with. The DPE pen is chained to the desk and it writes in a colour nobody else is allowed to have.');
       await api.think('Delphin\'s things. Nobody has cleared his room yet. He had a liner pencil he used every single morning.');
       await api.until(function (f) { return f.ch13_hasEyeliner; }, { objective: 'Find something to write with in Delphin\'s room (door 6)', targets: ['ch13_eyeliner'] });
-      api.objective('Back to your desk', { target: 'desk' });
-      await api.waitForInteract('desk');
+      api.objective('Back to your desk', { target: 'ch13_desk' });
+      await api.waitForInteract('ch13_desk');
       await writeNote(api, 'eyeliner');
     }
 
@@ -1013,7 +1018,7 @@
     await api.think('For one second his eyes come up, and there is something raw in them, like a man who found a note under his bucket this morning. Then they drop again, and he goes.');
     api.hide('trader_sun');
     api.set('ch13_bookGiven', true);
-    api.addObject({ id: 'ch13_book', at: mark(H.room, 'nightstand', [6, 1]), prop: 'book13', solid: false, layer: 1, examine: [{ think: 'Falsville.' }] });
+    api.addObject({ id: 'ch13_book', at: mark(H.room, 'nightstand', [6, 1]), prop: 'book13', solid: false, layer: 1, examine: [{ think: 'Falsville. The cover is new. The spine has never been cracked.' }] });
     api.unlockPlayer();
     api.objective('Look through the book', { target: 'ch13_book' });
     await api.waitForInteract('ch13_book');

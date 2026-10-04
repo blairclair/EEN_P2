@@ -23,31 +23,42 @@
   'use strict';
 
   /* ---------------------------------------------------------------------
-   * SHARED MAP NAMES (one place)
+   * SHARED MAP NAMES (one place). Maps are KEYED by these ids so the shared
+   * cross-room exits (to_bedroom_hall, to_luna_room...) link automatically.
    * ------------------------------------------------------------------- */
   var SHARED = {
     lunaRoom: 'house_luna_room',
     hall: 'house_bedroom_hall',
     arena: 'house_gym_vr'
   };
+  var NIGHT_ROOM = 'c4_luna_room_night';   // chapter-local dark copy of house_luna_room
 
-  /* Coordinates inside the shared rooms. Adjust here when shared maps land. */
+  function mk(map, name, fb) {
+    var m = G.shared && G.shared.data && G.shared.data.marks && G.shared.data.marks[map];
+    return (m && m[name]) || fb;
+  }
+  /* Every House coordinate this chapter uses, taken from the shared marks
+   * (fallbacks = the values in the shared file headers). */
   var POS = {
-    room: { wake: [3, 3], door: [4, 7], sink: [6, 2], window: [3, 0], tablet: [1, 3] },
-    hall: { arrive: [4, 2], delphin: [14, 1], stair: [16, 2] },
+    room: { wake: mk(SHARED.lunaRoom, 'bed', [6, 3]), center: mk(SHARED.lunaRoom, 'center', [4, 5]) },
+    hall: { delphin: [4, 2], stairZone: [1, 1] },
     arena: {
-      arrive: [6, 15], trader: [11, 7], ginerva: [15, 7],
-      curtain: { y: 8, x0: 4, x1: 19 },
-      line: [[7, 10], [8, 10], [9, 10], [10, 10], [12, 10], [13, 10], [14, 10]], // luna is index 6
-      delphin: [13, 12], isaiah: [5, 12], annette: [17, 13], kessie: [9, 13], john: [16, 11], carol: [18, 11],
-      tbs: [[10, 6], [11, 6], [12, 6]],
-      bed: [11, 5], poster1: [2, 1], poster2: [20, 1], glass: [22, 8],
-      audience: [[22, 4], [22, 6], [22, 9], [22, 11], [22, 13]],
-      wheel: [11, 9]
+      arrive: mk(SHARED.arena, 'door_in', [1, 9]),
+      trader: [5, 11], ginerva: [5, 14],
+      curtain: { x: 6, y0: 2, y1: 14 },           // vertical white curtain hiding the bed circle
+      frost: { x: 21, y0: 2, y1: 14 },            // frosted overlay on the observation glass
+      line: [[3, 8], [3, 9], [3, 10], [3, 11], [3, 12], [3, 13], [3, 14]],   // pre-sim line-up, faces east; luna = [6]
+      line2: [[18, 5], [18, 6], [18, 7], [18, 8], [18, 9], [18, 10], [18, 11]], // judgement line, faces west (the glass behind)
+      delphin: [2, 12], isaiah: [2, 3], annette: [4, 13], kessie: [2, 6], john: [4, 4], carol: [1, 12],
+      tbs: [[5, 3], [5, 4], [5, 5]],
+      tbsAfter: [[10, 9], [12, 9], [11, 10]],
+      bed: mk(SHARED.arena, 'bed_3', [14, 10]),   // "the last one, just before the screen"
+      luna_at_bed: [13, 10], elephant_at_bed: [14, 9],
+      poster1: [2, 1], poster2: [4, 1]
     }
   };
 
-  /* Minimal placeholder used only until the shared map exists (main's rule:
+  /* Minimal placeholder used only if a shared map is missing (main's rule:
    * a plain box, not a redraw; the shared version is canon). */
   function box(name, w, h) {
     var rows = [];
@@ -62,7 +73,7 @@
     if (G.shared && G.shared.has && G.shared.has(name)) return G.shared.map(name, ext);
     var m = G.cloneDef ? G.cloneDef(fb) : fb;
     ['npcs', 'objects', 'zones', 'exits', 'lights'].forEach(function (k) { if (ext[k]) m[k] = (m[k] || []).concat(ext[k]); });
-    Object.keys(ext).forEach(function (k) { if (['npcs', 'objects', 'zones', 'exits', 'lights', 'remove'].indexOf(k) < 0) m[k] = ext[k]; });
+    Object.keys(ext).forEach(function (k) { if (['npcs', 'objects', 'zones', 'exits', 'lights', 'remove', 'patch'].indexOf(k) < 0) m[k] = ext[k]; });
     return m;
   }
   function extra(kind, seed, over) {
@@ -71,66 +82,66 @@
   }
 
   /* ---------------------------------------------------------------------
-   * HOUSE ROOMS
+   * HOUSE ROOMS (shared, extended)
    * ------------------------------------------------------------------- */
-  var roomObjects = [
-    { id: 'c4_sink', at: POS.room.sink, examine: async function (api) {
-        if (!api.get('ch04_shocked')) { await api.think('The marble en-suite. Later.'); return; }
+  var lunaRoom = useShared(SHARED.lunaRoom, {
+    patch: {
+      bath_sink: { examine: async function (api) {
+        if (!api.get('ch04_shocked')) { await api.think('Gold taps. Warm water whenever I want it. That is how they get you.'); return; }
         if (api.get('ch04_cooled')) { await api.think('The sting has dulled to an itch.'); return; }
         api.set('ch04_cooled', true);
-        await api.narrate('You fumble with the faucet until a steady stream of cold water runs over your arm. The freezing water soothes the stinging skin enough to think.');
+        await api.narrate('You fumble with the gold taps until a stream of cold water runs over your arm. It soothes the stinging skin enough to think.');
       } },
-    { id: 'c4_window', at: POS.room.window, thought: true, examine: 'The sealed window. Almond blossoms, pink in the dark. Pretty enough to forget the fence behind them.' },
-    { id: 'c4_tablet', at: POS.room.tablet, thought: true, examine: 'The tablet still will not turn off. Waverly at six, blowing out a candle. Curated. Somebody chose that one.' }
-  ];
-  var lunaRoom = useShared(SHARED.lunaRoom, {
-    objects: roomObjects,
-    exits: [{ id: 'c4_toHall', at: POS.room.door, to: 'bedroom_hall', toAt: POS.hall.arrive, facing: 'right',
-      locked: '!ch04_shocked', lockedText: [{ think: 'The alarm first. It is not going to stop on its own.' }] }],
+      tablet: { examine: [{ think: 'The tablet still will not turn off. Waverly at six, blowing out a candle. Curated. Somebody chose that one.' }] },
+      to_bedroom_hall: { locked: '!ch04_shocked', lockedText: [{ think: 'The alarm first. It is not going to stop on its own.' }] }
+    },
     ambient: 'hum'
-  }, box('Luna\'s Room', 9, 8));
+  }, box('Luna\'s Room', 10, 10));
 
   var lunaRoomNight = useShared(SHARED.lunaRoom, {
-    objects: [], ambient: 'drone', dark: 0.62, playerLight: 30, lights: [{ at: POS.room.tablet, r: 30, flicker: true }]
-  }, box('Luna\'s Room', 9, 8));
+    patch: { to_bedroom_hall: { locked: true, lockedText: [{ think: 'Locked. 23:00 to 06:00. The green button is for emergencies.' }] } },
+    ambient: 'drone', dark: 0.62, playerLight: 30
+  }, box('Luna\'s Room', 10, 10));
 
+  // The main stair (west end) is where Delphin waits; replace its locked exit with our trigger zone.
   var hall = useShared(SHARED.hall, {
-    npcs: [{ id: 'delphin', at: POS.hall.delphin, facing: 'left' }],
-    zones: [{ id: 'c4_stairZone', at: POS.hall.stair, w: 1, h: 1 }],
+    remove: ['to_foyer'],
+    npcs: [{ id: 'delphin', at: POS.hall.delphin, facing: 'right' }],
+    zones: [{ id: 'c4_stairZone', at: POS.hall.stairZone, w: 2, h: 4 }],
     ambient: 'hum'
-  }, box('Bedroom Hall', 20, 5));
+  }, box('Bedroom Hall', 42, 6));
 
-  /* Arena: curtain across the gym hides the beds until Trader's reveal. */
+  /* Arena: a white curtain hides the bed circle; frosted glass hides the gallery. */
   var curtainObjs = [];
-  for (var cx = POS.arena.curtain.x0; cx <= POS.arena.curtain.x1; cx++) {
-    curtainObjs.push({ id: 'c4_curtain' + cx, at: [cx, POS.arena.curtain.y], prop: 'ch04:curtain', solid: true, layer: 1,
+  for (var cy = POS.arena.curtain.y0; cy <= POS.arena.curtain.y1; cy++) {
+    curtainObjs.push({ id: 'c4_curtain' + cy, at: [POS.arena.curtain.x, cy], prop: 'ch04:curtain', solid: true, layer: 1,
       examine: [{ think: 'A clinical white curtain. "Definitely don\'t try to peek," he said. So of course everyone wants to.' }] });
   }
-  var audienceNpcs = POS.arena.audience.map(function (p, i) {
-    return { id: 'c4_aud' + i, at: p, spec: extra('audience', 400 + i, {}), facing: 'left', visible: false, turn: false };
-  });
+  for (var fy = POS.arena.frost.y0; fy <= POS.arena.frost.y1; fy++) {
+    curtainObjs.push({ id: 'c4_frost' + fy, at: [POS.arena.frost.x, fy], prop: 'ch04:frost', solid: true, layer: 1,
+      examine: [{ think: 'Frosted white glass along the whole east wall. Something moves behind it. Lots of somethings.' }] });
+  }
   var arena = useShared(SHARED.arena, {
     npcs: [
-      { id: 'trader', at: POS.arena.trader, facing: 'down', talk: [['trader', 'Calibrations, darling. Patience is a virtue. You could use a few of those.', 'smug']] },
-      { id: 'ginerva', at: POS.arena.ginerva, facing: 'down', talk: [['ginerva', 'Return to your place, Ms. Bartley.']] },
+      { id: 'trader', at: POS.arena.trader, facing: 'left', talk: [['trader', 'Calibrations, darling. Patience is a virtue. You could use a few of those.', 'smug']] },
+      { id: 'ginerva', at: POS.arena.ginerva, facing: 'left', talk: [['ginerva', 'Return to your place, Ms. Bartley.']] },
       { id: 'delphin', at: POS.arena.delphin, facing: 'up' },
-      { id: 'isaiah', at: POS.arena.isaiah, facing: 'right' },
-      { id: 'annette', at: POS.arena.annette, facing: 'left' },
-      { id: 'kessie', at: POS.arena.kessie, facing: 'up' },
-      { id: 'john', at: POS.arena.john, facing: 'left' },
-      { id: 'carol', at: POS.arena.carol, facing: 'left' },
-      { id: 'c4_elephant', spec: 'tb_elephant', at: POS.arena.tbs[0], facing: 'down', visible: false, turn: false },
-      { id: 'c4_hippo', spec: 'tb_hippo', at: POS.arena.tbs[1], facing: 'down', visible: false, turn: false },
-      { id: 'c4_boar', spec: 'tb_boar', at: POS.arena.tbs[2], facing: 'down', visible: false, turn: false }
-    ].concat(audienceNpcs),
+      { id: 'isaiah', at: POS.arena.isaiah, facing: 'down' },
+      { id: 'annette', at: POS.arena.annette, facing: 'up' },
+      { id: 'kessie', at: POS.arena.kessie, facing: 'right' },
+      { id: 'john', at: POS.arena.john, facing: 'down' },
+      { id: 'carol', at: POS.arena.carol, facing: 'right' },
+      { id: 'c4_elephant', spec: 'tb_elephant', at: POS.arena.tbs[0], facing: 'left', visible: false, turn: false },
+      { id: 'c4_hippo', spec: 'tb_hippo', at: POS.arena.tbs[1], facing: 'left', visible: false, turn: false },
+      { id: 'c4_boar', spec: 'tb_boar', at: POS.arena.tbs[2], facing: 'left', visible: false, turn: false }
+    ],
     objects: curtainObjs.concat([
-      { id: 'c4_poster1', at: POS.arena.poster1, prop: 'poster', examine: [{ narrate: '"The cost of compliance is salvation and anyone willing to pay can be saved!" A painted man with a watermelon-stretched smile.' }, { think: 'His eyes are either empty or screaming. I can\'t decide which.' }] },
-      { id: 'c4_poster2', at: POS.arena.poster2, prop: 'poster', examine: [{ narrate: '"Don\'t forget to thank a DPE officer today for their service in rehabilitating the ungrateful."' }] },
-      { id: 'c4_glass', at: POS.arena.glass, examine: [{ think: 'Frosted white glass along the whole east wall. Something moves behind it. Lots of somethings.' }] }
+      { id: 'c4_poster1', at: POS.arena.poster1, prop: 'poster', solid: false, examine: [{ narrate: '"The cost of compliance is salvation and anyone willing to pay can be saved!" A painted man with a watermelon-stretched smile.' }, { think: 'His eyes are either empty or screaming. I can\'t decide which.' }] },
+      { id: 'c4_poster2', at: POS.arena.poster2, prop: 'poster', solid: false, examine: [{ narrate: '"Don\'t forget to thank a DPE officer today for their service in rehabilitating the ungrateful."' }] }
     ]),
+    legend: { A: 'gx_bleacher' },   // empty bleachers: today's paying audience is behind the glass
     ambient: 'tension'
-  }, box('Gymnasium', 24, 18));
-
+  }, box('Gymnasium', 24, 20));
   /* ---------------------------------------------------------------------
    * THE SIMULATION: business-district intersection, 40 x 30 (built here)
    * ------------------------------------------------------------------- */
@@ -253,6 +264,10 @@
       for (var i = 0; i < 16; i += 4) px(g, x + i, y - 8, 1, 24, '#c4c8d0');
       px(g, x, y + 14, 16, 2, '#b0b4bc');
     },
+    frost: function (g, x, y) {
+      px(g, x + 3, y - 8, 10, 24, 'rgba(236,240,246,0.92)');
+      px(g, x + 5, y - 6, 1, 20, 'rgba(255,255,255,0.9)');
+    },
     pharmacySign: function (g, x, y, t) {
       px(g, x + 1, y + 2, 14, 10, '#103a20'); var on = Math.sin(t * 4) > -0.6;
       px(g, x + 6, y + 3, 4, 8, on ? '#4af07a' : '#1a6a3a'); px(g, x + 4, y + 5, 8, 4, on ? '#4af07a' : '#1a6a3a');
@@ -364,7 +379,7 @@
     id: 'ch04',
     title: 'The Morality Test',
     kicker: 'DAY 2',
-    maps: { luna_room: lunaRoom, luna_room_night: lunaRoomNight, bedroom_hall: hall, gym_vr: arena, sim: sim },
+    maps: { house_luna_room: lunaRoom, c4_luna_room_night: lunaRoomNight, house_bedroom_hall: hall, house_gym_vr: arena, sim: sim },
     cast: { luna_eye: { extends: 'luna', accessory: 'bandage' } },
     tiles: tiles,
     props: props,
@@ -772,7 +787,7 @@
     A.set('ch04_simEvent', null);
 
     /* --- 1. Wake-up ---------------------------------------------------- */
-    await api.goRoom('luna_room', { at: POS.room.wake, facing: 'down', fade: false });
+    await api.goRoom('house_luna_room', { at: POS.room.wake, facing: 'down', fade: false });
     await api.slides([{ style: 'montage', title: 'dream', text: 'I was swimming with the lions. That was my first hint something was off. The lion at the front opened its mouth, and I leaned in, ready to collect whatever pearls of wisdom might -' }]);
     api.sound('alarm'); await api.shake(300, 2);
     await api.narrate('BEEP! BEEP!');
@@ -798,12 +813,12 @@
     await api.narrate('A low chime, deceptively pleasant. Then a hum, a deep vibration that sucks the air from the room. The watch flashes green: GYMNASIUM. 500.');
     var gymT = 500, late = false;
     (function tick() {
-      if (!alive() || api.room() === 'gym_vr' || api.get('ch04_arrived')) return;
+      if (!alive() || api.room() === 'house_gym_vr' || api.get('ch04_arrived')) return;
       gymT--; hudText('GYMNASIUM ▸ ' + gymT + '   •   get downstairs');
       if (gymT <= 0 && !late) { late = true; api.sound('buzzer'); api.flash('#ffffff', 200); api.approvalAdd(-2); hudText('GYMNASIUM ▸ LATE'); return; }
       setTimeout(tick, 1000);
     })();
-    await api.waitForRoom('bedroom_hall');
+    await api.waitForRoom('house_bedroom_hall');
 
     /* --- 2. Stairs: Delphin -------------------------------------------- */
     await api.think('The door locks behind me. I jog, before the evil device decides my hallway pace is noncompliant as well.');
@@ -824,11 +839,11 @@
     api.set('ch04_arrived', true); hudText(null);
 
     /* --- 3. Gym foyer ---------------------------------------------------- */
-    await api.goRoom('gym_vr', { at: POS.arena.arrive, facing: 'up', fade: true });
-    api.placeNpc('delphin', [POS.arena.arrive[0] + 1, POS.arena.arrive[1]], 'up');
+    await api.goRoom('house_gym_vr', { at: POS.arena.arrive, facing: 'up', fade: true });
+    api.placeNpc('delphin', [POS.arena.arrive[0] + 1, POS.arena.arrive[1] + 1], 'right');
     await api.narrate('The gym has been transformed overnight. A few folding chairs where the buffet was. New posters. And a clinical white curtain hiding the rest of the room.');
     await api.say('trader', 'Cutting it close, you two. We\'ll start as soon as the techs finish their calibrations. You\'re free to explore, but don\'t try to leave, and definitely don\'t try to peek behind the curtain.', { mood: 'smug' });
-    await api.move('delphin', [POS.arena.trader[0] + 1, POS.arena.trader[1] + 1]);
+    await api.move('delphin', [POS.arena.trader[0] - 1, POS.arena.trader[1]]);
     api.face('delphin', 'trader');
     await api.say('delphin', 'Does that mean we can interact with you too, dear host? I\'ve been dying for us to get some quality time.', { mood: 'happy' });
     await api.emote('isaiah', '!');
@@ -839,11 +854,13 @@
 
     // John and Carol
     await api.move('john', [POS.arena.arrive[0] + 1, POS.arena.arrive[1] - 1]);
+    api.face('player', 'john');
     api.face('john', 'player');
     await api.narrate('A thin man with more grease than thread in his hair. Perfect red circles dot his arms. You know those marks. You know how the burn patterns get that perfect.');
     await api.say('luna', 'Hello. I\'m Luna. It looks like we\'ll be competing in the show together.');
     await api.say('john', 'Hullo. I\'m John. I\'m glad to uh... to, uh, meet you, Luna.', { mood: 'happy' });
     await api.move('carol', [POS.arena.arrive[0] + 2, POS.arena.arrive[1] - 1]);
+    api.face('carol', 'player');
     await api.say('carol', 'You\'re supposed to shake it.', { mood: 'smug' });
     await api.say('john', 'Hi Carol. This is Luna. Another new friend.', { mood: 'happy' });
     await api.say('carol', 'I suppose we could all use a friend. Actually, would you mind coming with me for a moment, Johnny? I have a special friend secret to share with you.', { mood: 'smug' });
@@ -870,18 +887,19 @@
     api.objective(null);
 
     /* --- 4. The cleansing ritual --------------------------------------- */
-    api.onAir(true); api.approval(true);
+    api.onAir(true);   // the meter itself appears when the audience first reacts (Carol's punishment)
     api.lowerThird('RIGHT TO LIFE', 'Day 2 • The Morality Test', 3500);
     POS.arena.line.forEach(function (p, i) {
       var id = ['annette', 'isaiah', 'kessie', 'carol', 'john', 'delphin'][i];
-      if (id) api.placeNpc(id, p, 'up');
+      if (id) api.placeNpc(id, p, 'right');
     });
-    api.teleport(POS.arena.line[6], 'up');
+    api.teleport(POS.arena.line[6], 'right');
+    api.placeNpc('trader', POS.arena.trader, 'left');
     api.show('c4_elephant'); api.show('c4_hippo'); api.show('c4_boar');
     await api.say('trader', ['Excellent. Before we begin the competition, I have an announcement.', 'The board has decided that since one of you will be released back into society at the end, we need to do all we can to ensure you are one hundred percent reformed.', 'Thankfully, we have our very own cleansing experts. Do as they wish. I don\'t think I have to tell you about the consequences if you don\'t.']);
     await api.narrate('As one, the three True Believers rise and glide down the line. The one in the elephant mask stops in front of you.');
-    await api.move('c4_elephant', [POS.arena.line[6][0], POS.arena.line[6][1] - 1]);
-    api.face('c4_elephant', 'down');
+    await api.move('c4_elephant', [POS.arena.line[6][0] + 1, POS.arena.line[6][1]]);
+    api.face('c4_elephant', 'left');
     await api.narrate('A gloved hand takes your bare one and turns it palm up. The glove is scratchy. Ginerva passes along the line with tiny bottles of something clear.');
     var cl = await api.minigame('cleanse', {});
     api.set('ch04_flinches', cl.flinches || 0);
@@ -894,16 +912,20 @@
     /* --- 5. The reveal and the rules ----------------------------------- */
     await api.say('trader', ['Confessions are the windows to the soul. Today, you will learn to make better decisions than you have in the past.', 'You\'ve all made mistakes. That\'s why you\'re here. But this is the start of your redemption journey. Your life and your eternal soul depend on it.']);
     api.sound('reveal');
-    for (var cx2 = POS.arena.curtain.x0; cx2 <= POS.arena.curtain.x1; cx2++) api.remove('c4_curtain' + cx2);
+    for (var cy2 = POS.arena.curtain.y0; cy2 <= POS.arena.curtain.y1; cy2++) api.remove('c4_curtain' + cy2);
+    POS.arena.tbs.forEach(function (p, i) { api.placeNpc(['c4_elephant', 'c4_hippo', 'c4_boar'][i], POS.arena.tbsAfter[i], 'down'); });
+    await api.pan(mk(SHARED.arena, 'tray', [11, 9]), 700);
     api.flash('#ffffff', 200);
     await api.narrate('He yanks the curtain back. Seven beds in a tight circle. Seven machines, each ending in a single gleaming needle. A porcelain tray of tools: hooks for scraping gums or flesh. Knives bent just enough to pretend they aren\'t knives.');
     await api.say('trader', 'I present your arena. It may seem a bit flat, but I assure you that what we lack in flare, we make up for in salvation.', { mood: 'smug' });
     await api.say('delphin', 'Wonderful ambiance. Can\'t wait to settle in for a plate full of comfort with True Believers on the side. Are they part of the test?', { mood: 'happy' });
     await api.say('trader', ['I\'ll explain the challenge now. No questions until after.', 'You\'ll be injected with chemicals that trigger a controlled hallucination. A morality simulation. What will you do when forced to make an impossible choice?']);
     api.sound('static');
-    POS.arena.audience.forEach(function (p, i) { api.show('c4_aud' + i); });
+    for (var fy2 = POS.arena.frost.y0; fy2 <= POS.arena.frost.y1; fy2++) api.remove('c4_frost' + fy2);
+    await api.pan([19, 8], 600);
     await api.narrate('He points a remote at the far wall. The white fades to transparent. Hundreds of faces pressed against the glass, cataloguing your breakdown potential.');
     await api.say('trader', 'Your audience. But also, your judges. They\'ll be watching your choices and voting on them.');
+    await api.cameraReset(500);
     await api.say('trader', ['I don\'t want any of you delinquents to think this\'ll be easy just because it\'s all in your head.', 'If you injure yourself in the simulation, a True Believer will injure your physical body in the same way. The only exception is if you somehow got killed.']);
     await api.say('trader', 'That privilege belongs to the state alone.', { mood: 'angry' });
     await api.say('delphin', 'Chilling. Absolutely, theatrically absurd. Only the most twisted of minds could have come up with this one. I do believe I\'m impressed.', { mood: 'smug' });
@@ -922,6 +944,7 @@
     await api.narrate('Ginerva presses the button. Carol hits the ground and convulses. A strangled screech, heels scrabbling against the rubber floor. Then her bladder gives out.');
     await api.say('kessie', 'Stop it! Stop! She gets it, okay? Please, can\'t you see she\'s scared? Do something.', { mood: 'angry' });
     await api.narrate('Behind the glass, two women toast Carol with wine. Someone pushes a little girl to the front to watch, maybe eight, two pigtails like Waverly used to wear.');
+    api.approval(true);
     var pl = await api.choice([
       '"Trader." (Just his name.) "Look at her."',
       '(Stay silent.)'
@@ -955,9 +978,9 @@
     await api.say('annette', 'Lookie here at this one. This girl has more grit than any of yeh wimps.', { mood: 'happy' });
     api.approvalAdd(3);
     await api.say('trader', 'Go ahead. ... Good luck.');
-    await api.move('c4_elephant', [POS.arena.bed[0], POS.arena.bed[1] + 1]);
+    await api.move('c4_elephant', POS.arena.elephant_at_bed);
     api.lockPlayer();
-    await api.movePlayer([POS.arena.bed[0] + 1, POS.arena.bed[1] + 1]);
+    await api.movePlayer(POS.arena.luna_at_bed);
     api.face('player', 'c4_elephant');
     await api.narrate('The sheet is stained with something rusty that looks a lot like dried blood. Straps click shut around your wrists. Click. Click. Stomach up, like prey hoping to soothe a larger predator.');
     await api.think('I\'ll get her something special when I win. A treat we never could have afforded. Just hold on to that.');
@@ -975,17 +998,19 @@
 
     /* --- 9. Judgement --------------------------------------------------- */
     api.setPlayer('luna_eye');
-    await api.goRoom('gym_vr', { at: [POS.arena.bed[0] + 1, POS.arena.bed[1] + 1], facing: 'down', fade: true });
+    await api.goRoom('house_gym_vr', { at: POS.arena.luna_at_bed, facing: 'right', fade: true });
+    api.placeNpc('c4_elephant', POS.arena.elephant_at_bed, 'down');
     api.onAir(true); api.approval(true);
-    POS.arena.line.forEach(function (p, i) {
+    POS.arena.line2.forEach(function (p, i) {
       var id = ['annette', 'isaiah', 'kessie', 'carol', 'john', 'delphin'][i];
-      if (id) api.placeNpc(id, p, 'up');
+      if (id) api.placeNpc(id, p, 'left');
     });
+    api.placeNpc('trader', [16, 8], 'right'); api.placeNpc('ginerva', [16, 12], 'right');
     await api.narrate('Reality stinks of old piss and latex. Your right eye throbs. In the sim, an elbow. Out here, a True Believer, while you slept.');
     await api.think('Elephant undoes my straps. I wonder if they ever regret it, or if that got stomped out of them a long time ago.');
-    api.teleport(POS.arena.line[6], 'up');
+    api.teleport(POS.arena.line2[6], 'left');
     await api.say('trader', ['Gather round, everyone. It\'s judgement time.', 'You\'ve all been very poorly behaved. But it\'s not your fault. Not entirely. You\'re sick.']);
-    await api.move('trader', [POS.arena.line[1][0], POS.arena.line[1][1] - 1]);
+    await api.move('trader', [POS.arena.line2[1][0] - 1, POS.arena.line2[1][1]]);
     api.face('trader', 'isaiah');
     await api.say('trader', 'Tell me, Isaiah, what do you do with a sickness before it spreads?');
     await api.say('isaiah', 'I-I suppose you\'d want to isolate the DNA cells that lead to the specific mutation in order to begin development of a vaccine.', { mood: 'fear' });
@@ -993,7 +1018,7 @@
     await api.say('kessie', 'I believe Isaiah is telling you to cure the sickness.');
     await api.say('trader', 'That\'s right. Think of us as doctors, here to provide the firm guidance and steering hand needed to separate you from the sickness infecting your personalities.');
     await api.narrate('He steers Kessie by the shoulder like a puppet. Behind the glass, a pack of teenage boys do a marionette dance.');
-    await api.move('trader', [POS.arena.line[6][0], POS.arena.line[6][1] - 1]);
+    await api.move('trader', [POS.arena.line2[6][0] - 1, POS.arena.line2[6][1]]);
     api.face('trader', 'player');
     await api.say('trader', 'I\'m going out of my way to help you. You should be grateful. In fact, I think you should thank me right now. For the cameras. Your daughter is watching, isn\'t she? Show her what proper manners look like.', { mood: 'angry' });
     var th = await api.choice(['"Thank you." (Through your teeth.)', '(Say nothing. Stare back.)'], { autoPick: 0 });
@@ -1045,7 +1070,7 @@
     await api.say('delphin', 'You know, I thought my biggest competition would be the manipulative type. Makes sense. You\'ve always been more dangerous than you let yourself believe.', { mood: 'tired' });
 
     // armpit hold + angel's wings
-    await api.move('trader', [POS.arena.line[6][0] - 1, POS.arena.line[6][1]]);
+    await api.move('trader', [POS.arena.line2[6][0] - 1, POS.arena.line2[6][1] + 1]);
     api.face('trader', 'player');
     await api.say('trader', 'Luna, will you join me, please? A little closer, now. I won\'t bite.', { mood: 'smug' });
     await api.narrate('His arm wraps around your shoulders and pulls. Hot, sour breath against your cheek. The grip tightens until you can barely twitch.');
@@ -1087,7 +1112,7 @@
     api.onAir(false); api.approval(false);
 
     /* --- 12. Night ranking ---------------------------------------------- */
-    await api.goRoom('luna_room_night', { at: POS.room.wake, facing: 'down', fade: true });
+    await api.goRoom(NIGHT_ROOM, { at: POS.room.wake, facing: 'down', fade: true });
     await api.narrate('Night. Your eye has swollen almost shut. The silk sheets are still too cold.');
     api.sound('blip');
     await api.slides([{ style: 'screen', text: 'DPE WATCH • NIGHTLY RANKING\n\n1. CAROL\n2. DELPHIN\n3. LUNA\n4. KESSIE\n5. ISAIAH\n6. ANNETTE\n7. JOHN\n\nSECRET TASKS UNLOCK TOMORROW.' }]);

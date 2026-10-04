@@ -31,7 +31,10 @@
   'use strict';
 
   /* ---------------------------------------------------------------------
-   * Shared-map plumbing
+   * Shared-map plumbing. Maps are KEYED by the shared ids so the shared
+   * to_<room> exits link. Each fallback (only used if a shared room is
+   * missing) mirrors the shared layout and uses the SAME entity ids, so
+   * targets and marks work either way.
    * ------------------------------------------------------------------- */
   var ROOMS = {
     luna: 'house_luna_room',
@@ -48,47 +51,26 @@
   function hasShared(id) { try { return !!(G.shared && G.shared.has && G.shared.has(id)); } catch (e) { return false; } }
   function mark(mapId, name, fb) { var m = sdata().marks && sdata().marks[mapId]; return (hasShared(mapId) && m && xy(m[name])) || fb; }
   function spawn(mapId, name, fb) { var s = sdata().spawns && sdata().spawns[mapId]; return (hasShared(mapId) && s && xy(s[name])) || fb; }
-
-  var SOLID = '#BQWGCEKTdbhOFSktPXVL|lMnpuo ';
-  /** Move chapter-added entities off solid tiles (only needed on shared layouts we don't control). */
-  function fit(m) {
-    var rows = m.tiles || [], taken = {};
-    function solidAt(x, y) {
-      if (y < 0 || y >= rows.length || x < 0 || x >= (rows[y] || '').length) return true;
-      var c = rows[y].charAt(x), lg = m.legend && m.legend[c];
-      if (lg) return !!(lg.solid);
-      return SOLID.indexOf(c) >= 0;
-    }
-    (m.npcs || []).concat(m.objects || []).forEach(function (e) {
-      if (!e._ch10 || !e.at || e.free) return;
-      var x = e.at[0], y = e.at[1];
-      if (!solidAt(x, y) && !taken[x + ',' + y]) { taken[x + ',' + y] = 1; return; }
-      var q = [[x, y]], seen = {}; seen[x + ',' + y] = 1;
-      while (q.length) {
-        var p = q.shift();
-        if (!solidAt(p[0], p[1]) && !taken[p[0] + ',' + p[1]]) { e.at = p; taken[p[0] + ',' + p[1]] = 1; return; }
-        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
-          var k = (p[0] + d[0]) + ',' + (p[1] + d[1]);
-          if (!seen[k] && Math.abs(p[0] + d[0] - x) < 12 && Math.abs(p[1] + d[1] - y) < 12) { seen[k] = 1; q.push([p[0] + d[0], p[1] + d[1]]); }
-        });
-      }
-    });
-    return m;
-  }
-  function tag(list) { (list || []).forEach(function (e) { e._ch10 = true; }); return list; }
-  /** Shared map + our extension, or our own full fallback with the same extension appended. */
+  /** Shared map + our extension, or our minimal fallback with the same extension appended. */
   function room(id, fallback, ext) {
-    ['npcs', 'objects', 'zones', 'exits', 'lights'].forEach(function (k) { tag(ext[k]); });
-    if (hasShared(id)) return fit(G.shared.map(id, ext));
+    if (hasShared(id)) return G.shared.map(id, ext);
     var m = {};
     Object.keys(fallback).forEach(function (k) { m[k] = fallback[k]; });
+    var rm = ext.remove || [];
+    ['objects', 'npcs', 'exits', 'zones'].forEach(function (k) { if (m[k]) m[k] = m[k].filter(function (e) { return rm.indexOf(e.id) < 0; }); });
     Object.keys(ext).forEach(function (k) {
-      if (k === 'remove') return;
+      if (k === 'remove' || k === 'patch') return;
       if (Array.isArray(ext[k]) && Array.isArray(m[k])) m[k] = m[k].concat(ext[k]);
       else m[k] = ext[k];
     });
+    Object.keys(ext.patch || {}).forEach(function (pid) {
+      ['objects', 'npcs', 'exits', 'zones'].forEach(function (k) { (m[k] || []).forEach(function (e) {
+        if (e.id === pid) Object.keys(ext.patch[pid]).forEach(function (f) { e[f] = ext.patch[pid][f]; });
+      }); });
+    });
     return m;
   }
+  function always() { return true; }
 
   /* ---------------------------------------------------------------------
    * Custom tiles and props
@@ -145,53 +127,65 @@
   };
 
   /* ---------------------------------------------------------------------
-   * MAP: Luna's room (No. 3), 8x8 interior. Night.
+   * MAP: house_luna_room (No. 3). Night. Shared fixtures are patched by id.
    * ------------------------------------------------------------------- */
   var lunaFallback = {
     name: "Luna's Room",
     tiles: [
-      '##V#W#####',
-      '#P....,bb#',
-      '#.....,bb#',
-      '#,,,,,,..#',
-      '#,,,,,,..#',
-      '#,,,,,,..#',
+      '####WW####',
+      '#P....Lbb#',
+      '#......bb#',
+      '#......bb#',
+      '#..RRR...#',
+      '#..RRR...#',
+      '#.c......#',
       '#dd......#',
-      '#c.......#',
       '#........#',
-      '#####D####'
+      '####D#####'
     ],
-    spawn: [5, 4],
-    exits: [{ id: 'to_bedroom_hall', at: [5, 9], to: ROOMS.hall, toAt: [14, 1], facing: 'down' }]
+    spawn: [4, 8],
+    objects: [
+      { id: 'window', at: [4, 0] }, { id: 'tablet', at: [2, 0] }, { id: 'bed', at: [7, 2] },
+      { id: 'desk', at: [1, 7] }, { id: 'booklet', at: [2, 7] }, { id: 'smoke_detector', at: [7, 0], prop: 'camera', solid: false }
+    ],
+    exits: [{ id: 'to_bedroom_hall', at: [4, 9], to: ROOMS.hall, toAt: [14, 1], facing: 'down' }]
   };
-  var L_DOOR_IN = mark(ROOMS.luna, 'door_inside', [5, 8]);
+  var L_DOOR = mark(ROOMS.luna, 'door', [4, 8]);
+  var L_BED = mark(ROOMS.luna, 'bed', [6, 3]);
+  var L_CENTER = mark(ROOMS.luna, 'center', [4, 5]);
   var lunaRoom = room(ROOMS.luna, lunaFallback, {
     ambient: 'hum', dark: 0.5, playerLight: 46, tint: '#101830', tintAlpha: 0.18,
-    lights: [{ at: [4, 1], r: 40 }, { at: [2, 1], r: 26, flicker: true }],
-    objects: [
-      { id: 'ch10_window', at: mark(ROOMS.luna, 'window', [4, 0]), examine: async function (api) {
+    lights: [{ at: [4, 1], r: 40 }],
+    patch: {
+      window: { examine: async function (api) {
           if (api.has('ch10_woke')) { await api.think('The garden is black. No shadows at the fence tonight. There never will be again.'); return; }
           await api.think('The almond blossoms look grey in the floodlights. Sunday night there were two shadows at that fence.');
           await api.think('Kessie hasn\'t come back since the interviews. Her door has stayed shut for two days.');
           api.add('ch10_examined', 1);
         } },
-      { id: 'ch10_tablet', at: mark(ROOMS.luna, 'tablet', [2, 0]), examine: async function (api) {
+      tablet: { examine: async function (api) {
           await api.narrate('The wall tablet cycles its "curated memories": Waverly blowing out candles on a cake we never had.');
           await api.think('It never turns off. Someone, somewhere, chose these pictures to keep me soft.');
           api.add('ch10_examined', 1);
         } },
-      { id: 'ch10_eye', at: mark(ROOMS.luna, 'camera', [6, 0]), prop: 'camera', examine: [{ think: 'The smoke detector. Eye. Its red dot is solid tonight. Recording, not watching.' }, { sound: 'camera' }] },
-      { id: 'ch10_bed', at: mark(ROOMS.luna, 'bed', [7, 1]), examine: async function (api) {
+      bed: { examine: async function (api) {
           if (api.has('ch10_woke')) { await api.think('The sheets smell of smoke. So does my hair. So do I.'); return; }
           await api.think('Pink comforter, silk sheets too cold to sleep in. I haven\'t slept since the bus.');
           api.add('ch10_examined', 1);
         } },
-      { id: 'ch10_desk', at: mark(ROOMS.luna, 'desk', [1, 6]), examine: async function (api) {
+      desk: { examine: async function (api) {
           if (api.has('ch10_woke')) { await api.think('The DPE pen and the penguin booklet. Plenty of margin to write in.'); return; }
           await api.narrate('The penguin booklet lies open at "Rule 12: A contestant who conceals is a contestant who conspires."');
           api.add('ch10_examined', 1);
         } },
-      { id: 'ch10_photo', at: mark(ROOMS.luna, 'photo', [2, 6]), examine: async function (api) {
+      smoke_detector: { examine: [{ think: 'The smoke detector. Eye. Its red dot is solid tonight. Recording, not watching.' }, { sound: 'camera' }] },
+      // The door stays shut until Ginerva knocks, and again after the red room.
+      to_bedroom_hall: { locked: '!ch10_summoned || ch10_woke', lockedText: [{ think: 'Locked. It\'s past eleven. The doors lock at eleven.' }] }
+    },
+    objects: [
+      // Waverly's taped photo: the shared extra sits behind the nightstand, so it goes on the free wall by the door.
+      { id: 'waverly_photo', at: [3, 0], prop: (sdata().upstairs && sdata().upstairs.extras && sdata().upstairs.extras.waverlyPhoto) ? sdata().upstairs.extras.waverlyPhoto.prop : 'photo', solid: false, layer: 1,
+        examine: async function (api) {
           await api.think('Waverly\'s photo, taped back together. Her note is still under the mattress: "I can use that to help you escape."');
           if (!api.get('f_code_reply_sent', true)) await api.think('I never answered her properly. She\'ll think I didn\'t care. Better that than her thinking she can play Trader.');
           else await api.think('Twenty-one, twenty-two. No. Stay safe. Please, Wavey. Count with me and stay safe.');
@@ -201,18 +195,14 @@
   });
 
   /* ---------------------------------------------------------------------
-   * MAP: bedroom hall (F2), 40x4.
+   * MAP: house_bedroom_hall (F2), 42x6.
    * ------------------------------------------------------------------- */
   function hallTiles() {
-    var top = '#', bot = '#', mid = '#';
-    for (var x = 1; x < 41; x++) {
-      top += ({ 4: 'D', 14: 'D', 24: 'D', 34: 'D' })[x] || '#';
-      bot += ({ 9: 'D', 19: 'D', 29: 'D' })[x] || '#';
-      mid += ',';
-    }
-    top += '#'; bot += '#';
-    var rows = [top, mid + '#', mid + '#', mid + '#', mid + '#', bot];
-    rows[2] = rows[2].slice(0, 41) + 'D';
+    var rows = [], x, top = '', bot = '';
+    for (x = 0; x < 42; x++) { top += (x === 14 || x === 19) ? 'D' : '#'; bot += '#'; }
+    rows.push(top);
+    for (var y = 1; y <= 4; y++) rows.push('#' + new Array(41).join(',') + '.#');
+    rows.push(bot);
     return rows;
   }
   var hallFallback = {
@@ -220,17 +210,21 @@
     tiles: hallTiles(),
     spawn: [14, 1],
     exits: [
-      { id: 'to_luna_room', at: [14, 0], to: ROOMS.luna, toAt: [5, 8], facing: 'up' },
-      { id: 'to_service_stair', at: [41, 2], to: ROOMS.stair, toAt: [3, 1], facing: 'down' }
+      { id: 'to_luna_room', at: [14, 0], to: ROOMS.luna, toAt: [4, 8], facing: 'up' },
+      { id: 'to_kessie_room', at: [19, 0], to: 'house_kessie_room' },
+      { id: 'to_service_stair', at: [40, 1], h: 4, to: ROOMS.stair, toAt: [1, 2], facing: 'right' }
     ]
   };
   var H_LUNA = spawn(ROOMS.hall, 'from_luna_room', [14, 1]);
   var hall = room(ROOMS.hall, hallFallback, {
     ambient: 'hum', dark: 0.45, playerLight: 40, tint: '#141020', tintAlpha: 0.15,
-    lights: [{ at: [14, 1], r: 36 }, { at: [36, 2], r: 36 }],
+    patch: {
+      to_luna_room: { locked: always, lockedText: [{ think: 'Ginerva is watching me. There\'s no going back in.' }] },
+      to_kessie_room: { locked: always, lockedText: [{ narrate: 'Door No. 5. Kessie\'s. A strip of yellow tape has been pressed across the handle.' }, { think: 'Her rubber gloves were still drying on the radiator inside on Tuesday morning.' }] }
+    },
     npcs: [
-      { id: 'ginerva', at: [H_LUNA[0] + 1, H_LUNA[1] + 1], facing: 'left', talk: [['ginerva', 'I do not repeat myself, Miss Bartley. The stair. Now.', 'angry']] },
-      { id: 'delphin', spec: 'delphin_pj', at: [H_LUNA[0] + 9, H_LUNA[1] + 2], facing: 'left', talk: async function (api) {
+      { id: 'ginerva', at: [H_LUNA[0] + 1, H_LUNA[1] + 1], facing: 'left', talk: [['ginerva', 'I do not repeat myself, Miss Bartley. The service stair. East. Now.', 'angry']] },
+      { id: 'delphin', spec: 'delphin_pj', at: [H_LUNA[0] + 9, H_LUNA[1] + 1], facing: 'left', talk: async function (api) {
           if (api.has('ch10_hallDelphin')) { await api.say('delphin', 'Pyjama party in the basement. Can\'t think of a single way that ends well.'); return; }
           await api.say('delphin', 'So. Anyone have any guesses about why we\'re here? We could start a betting pool.');
           var c = await api.choice(['"Kessie isn\'t here."', '"Not funny, Del."', '(Say nothing.)']);
@@ -239,7 +233,7 @@
           if (c === 2) await api.think('His eyeliner is smudged. He slept in it. If he slept.');
           api.set('ch10_hallDelphin', true);
         } },
-      { id: 'isaiah', spec: 'isaiah_pj', at: [H_LUNA[0] + 6, H_LUNA[1] + 3], facing: 'up', talk: async function (api) {
+      { id: 'isaiah', spec: 'isaiah_pj', at: [H_LUNA[0] + 6, H_LUNA[1] + 2], facing: 'up', talk: async function (api) {
           if (api.has('ch10_hallIsaiah')) { await api.say('isaiah', 'Sorry. Sorry. I\'m fine.', { mood: 'sad' }); return; }
           await api.narrate('Isaiah\'s eyes are so red he must have spent all night rubbing them.');
           await api.say('isaiah', 'Does it matter? We\'re all dead anyway.', { mood: 'sad' });
@@ -247,7 +241,7 @@
           await api.think('Since the interviews he won\'t meet my eyes. Annette sat with him on the bus back.');
           api.set('ch10_hallIsaiah', true);
         } },
-      { id: 'annette', spec: 'annette_pj', at: [H_LUNA[0] - 6, H_LUNA[1] + 1], facing: 'right', talk: async function (api) {
+      { id: 'annette', spec: 'annette_pj', at: [H_LUNA[0] - 5, H_LUNA[1] + 1], facing: 'right', talk: async function (api) {
           if (api.has('ch10_hallAnnette')) { await api.say('annette', 'Run along, dear. Mustn\'t keep the lady waiting.', { mood: 'smug' }); return; }
           await api.say('annette', 'Evenin\', Luna. Couldn\'t sleep neither? It\'s the old bones. Or the conscience.', { mood: 'happy' });
           var c = await api.choice(['"What did you tell them, Annette?"', '"Goodnight, Annette."']);
@@ -257,104 +251,83 @@
           } else await api.say('annette', 'Manners. Thass better.', { mood: 'smug' });
           api.set('ch10_hallAnnette', true);
         } },
-      { id: 'ch10_tb_hall', spec: 'tb_deer', at: [H_LUNA[0] + 24, H_LUNA[1] + 1], facing: 'left', talk: [{ narrate: 'The Deer mask doesn\'t turn. The gold eyes don\'t blink.' }] }
-    ],
-    objects: [
-      { id: 'ch10_door5', at: mark(ROOMS.hall, 'door_5', [24, 0]), free: true, examine: async function (api) {
-          await api.narrate('Door No. 5. Kessie\'s. A strip of yellow tape has been pressed across the handle.');
-          await api.think('Her rubber gloves are still drying on the radiator inside. I saw them on Tuesday morning.');
-        } }
+      { id: 'ch10_tb_hall', spec: 'tb_deer', at: [36, 1], facing: 'left', talk: [{ narrate: 'The Deer mask doesn\'t turn. The gold eyes don\'t blink.' }] }
     ]
   });
 
   /* ---------------------------------------------------------------------
-   * MAP: service stair (old, audio sensors only), down to the basement.
+   * MAP: house_service_stair (audio sensors only), 7x8.
    * ------------------------------------------------------------------- */
   var stairFallback = {
     name: 'Service Stair',
-    tiles: [
-      '###D###',
-      '#__q__#',
-      '#qqqqq#',
-      '#qqqqq#',
-      '#qqqqq#',
-      '#qqqqq#',
-      '#__q__#',
-      '#qqqqq#',
-      '#qqqqq#',
-      '#qqqqq#',
-      '#__q__#',
-      '###D###'
-    ],
-    legend: { q: 'ch10:steps' },
-    spawn: [3, 1],
+    tiles: ['#######', '#_____#', 'D_____#', '#___###', '#_____#', '#___###', '#_____#', '#######'],
+    spawn: [1, 2],
     exits: [
-      { id: 'to_bedroom_hall', at: [3, 0], to: ROOMS.hall, toAt: [40, 2], facing: 'left' },
-      { id: 'to_red_room', at: [3, 11], to: ROOMS.red, toAt: [6, 9], facing: 'up' }
+      { id: 'to_bedroom_hall', at: [0, 2], to: ROOMS.hall, toAt: [38, 2], facing: 'left' },
+      { id: 'to_red_room', at: [4, 6], w: 2, to: ROOMS.red, toAt: [2, 1], facing: 'down' }
     ]
   };
   var stair = room(ROOMS.stair, stairFallback, {
     ambient: 'drone', dark: 0.72, playerLight: 34, tint: '#200808', tintAlpha: 0.12,
-    lights: [{ at: [3, 10], r: 30, flicker: true }],
+    patch: { to_bedroom_hall: { locked: always, lockedText: [{ think: 'Ginerva is right behind me on the landing. Down. Only down.' }] } },
     zones: [
-      { id: 'ch10_stair1', at: [1, 3], w: 5, h: 1, once: true, run: [{ think: 'Audio sensors only on this stair. Walk. Don\'t run. Don\'t talk.' }, { sound: 'heartbeat' }] },
-      { id: 'ch10_stair2', at: [1, 6], w: 5, h: 1, once: true, run: [{ think: 'It smells of petrol down here. Petrol, and something sweet underneath it.' }] },
-      { id: 'ch10_stair3', at: [1, 9], w: 5, h: 1, once: true, run: [{ narrate: 'Ginerva\'s heels make no sound on the steps. Mine sound like gunshots.' }] }
+      { id: 'ch10_stair1', at: [1, 3], w: 3, h: 1, once: true, run: [{ think: 'Audio sensors only on this stair. Walk. Don\'t run. Don\'t talk.' }, { sound: 'heartbeat' }] },
+      { id: 'ch10_stair2', at: [1, 5], w: 3, h: 1, once: true, run: [{ think: 'It smells of petrol down here. Petrol, and something sweet underneath it.' }] },
+      { id: 'ch10_stair3', at: [1, 6], w: 3, h: 1, once: true, run: [{ narrate: 'Ginerva\'s heels make no sound on the steps. Yours sound like gunshots.' }] }
     ]
   });
 
   /* ---------------------------------------------------------------------
-   * MAP: the red room (basement), 10x10. Staging from shared marks.
+   * MAP: house_red_room (basement), 12x12 with walls. Staging from shared marks.
    * ------------------------------------------------------------------- */
   var redFallback = {
     name: 'The Red Room',
-    tiles: [
-      'rrrrrrrrrrrr',
-      'r__________r',
-      'r__________r',
-      'r__________r',
-      'r__________r',
-      'r__________r',
-      'r__________r',
-      'r__________r',
-      'r__________r',
-      'r__________r',
-      'r__________r',
-      'rrrrrrDrrrrr'
+    tiles: ['##D#########', '#__________#', '#__________#', '#__________#', '#__________#', '#__________#', '#__________#', '#__________#', '#__________#', '#__________#', '#__________#', '############'],
+    legend: { '#': 'ch10:bloodwall', _: 'ch10:redfloor' },
+    spawn: [2, 1],
+    objects: [
+      { id: 'cuffs_1', at: [4, 5], prop: 'ch10:cuffs', solid: false, layer: 1 },
+      { id: 'cuffs_2', at: [5, 5], prop: 'ch10:cuffs', solid: false, layer: 1 },
+      { id: 'cuffs_3', at: [6, 5], prop: 'ch10:cuffs', solid: false, layer: 1 },
+      { id: 'drain', at: [5, 7], prop: 'ch10:drain', solid: false, layer: -1 },
+      { id: 'cam_red', at: [9, 0], prop: 'camera', solid: false }
     ],
-    legend: { r: 'ch10:bloodwall', _: 'ch10:redfloor' },
-    spawn: [6, 9],
-    exits: [{ id: 'to_service_stair', at: [6, 11], to: ROOMS.stair, toAt: [3, 10], facing: 'up', locked: '!ch10_never', lockedText: [{ think: 'Ginerva is standing in front of the door. Her hands are folded behind her back.' }] }]
+    exits: [{ id: 'to_service_stair', at: [2, 0], to: ROOMS.stair, toAt: [3, 6], facing: 'left' }]
   };
   var RM = ROOMS.red;
-  var CUFF = mark(RM, 'cuffs_center', mark(RM, 'stake', [6, 5]));
-  var LINE = [mark(RM, 'line_1', [3, 8]), mark(RM, 'line_2', [4, 8]), mark(RM, 'line_3', [6, 8]), mark(RM, 'line_4', [8, 8])];
-  var JUDGE_AT = mark(RM, 'judge', [CUFF[0], CUFF[1] + 2]);
-  var DOOR_IN = mark(RM, 'door', [6, 10]);
-  var RING = [];
-  [-2, -1, 0, 1, 2].forEach(function (dx) { RING.push([CUFF[0] + dx, CUFF[1] - 1]); if (dx !== 0) RING.push([CUFF[0] + dx, CUFF[1] + 1]); });
-  RING.push([CUFF[0] - 2, CUFF[1]]); RING.push([CUFF[0] + 2, CUFF[1]]);
-  var RING_GAP = [CUFF[0], CUFF[1] + 1];   // closed with the last logs once Kessie and Elephant are hung
+  var CUFF = mark(RM, 'cuffs_center', [5, 5]);
+  var LINE = [mark(RM, 'line_1', [3, 9]), mark(RM, 'line_2', [4, 9]), mark(RM, 'line_4', [6, 9]), mark(RM, 'line_5', [7, 9])];
+  var JUDGE_POST = mark(RM, 'judge', [8, 2]);
+  var TRADER_POST = mark(RM, 'trader', [7, 2]);
+  var GIN_POST = mark(RM, 'ginerva', [3, 2]);
+  var DOOR_IN = mark(RM, 'door', [2, 1]);
+  var JUDGE_AT = [CUFF[0], LINE[0][1] - 1];             // between the pyre and the line
+  var TRADER_CORNER = [1, LINE[0][1] - 1];
   var K_AT = [CUFF[0] - 1, CUFF[1]], E_AT = [CUFF[0] + 1, CUFF[1]];
+  var RING_GAP = [CUFF[0], CUFF[1] + 2];                // closed with the last logs once they're hung
   var before = function (i) { return [LINE[i][0], LINE[i][1] - 1]; };
-
+  // Pyre: the shared extras (wood ring + gas cans), or the same layout here.
+  function pyre() {
+    var x = sdata().upstairs && sdata().upstairs.extras && sdata().upstairs.extras.redRoomPyre;
+    if (hasShared(RM) && x && x.length) return G.cloneDef(x);
+    var out = [];
+    [[3, 4], [3, 5], [3, 6], [4, 3], [5, 3], [6, 3], [7, 4], [7, 5], [7, 6], [4, 7], [6, 7]].forEach(function (p, i) { out.push({ id: 'wood_' + (i + 1), at: p, prop: 'ch10:logs', solid: true }); });
+    [[2, 7], [8, 3], [8, 7]].forEach(function (p, i) { out.push({ id: 'gas_' + (i + 1), at: p, prop: 'ch10:jerrycan', solid: true }); });
+    return out;
+  }
+  var REDLOOK = { set: { ch10_redLooked: '+1' } };
   function redExt(burning) {
-    var objs = [];
-    [K_AT, CUFF, E_AT].forEach(function (p, i) { objs.push({ id: 'ch10_cuffs' + i, at: p, prop: 'ch10:cuffs', solid: false, layer: 1, free: true,
-      examine: i === 1 ? [{ think: 'Three pairs of cuffs, silver, flecked with rust that gives them a reddish tint. Even the shackles match the room.' }] : null }); });
-    RING.forEach(function (p, i) { objs.push({ id: 'ch10_logs' + i, at: p, prop: 'ch10:logs', solid: true, free: true,
-      examine: [{ think: 'Firewood. Split oak, stacked in a ring around the cuffs. There\'s no fireplace in this room.' }] }); });
-    objs.push({ id: 'ch10_can1', at: [CUFF[0] - 4, CUFF[1] - 3], prop: 'ch10:jerrycan', examine: [{ narrate: 'A red can. The cap is off. The smell is enough to make your eyes water.' }, { think: 'Petrol. In a basement with no windows.' }] });
-    objs.push({ id: 'ch10_can2', at: [CUFF[0] + 4, CUFF[1] - 3], prop: 'ch10:jerrycan', examine: [{ think: 'Another can. Full. They brought spares.' }] });
-    objs.push({ id: 'ch10_drain', at: [CUFF[0] + 3, CUFF[1] + 2], prop: 'ch10:drain', solid: false, layer: -1, examine: [{ think: 'A drain in the floor. Why would a room need a drain.' }, { think: 'I know why.' }] });
-    objs.push({ id: 'ch10_redcam', at: [CUFF[0] - 2, 0], prop: 'camera', free: true, examine: [{ think: 'The dot is flashing. Someone is watching this live.' }, { sound: 'camera' }] });
-    objs.push({ id: 'ch10_ceiling', at: [CUFF[0] + 2, 0], free: true, examine: [{ narrate: 'Blood-red walls. A chartreuse ceiling. Somebody sat in a meeting and chose these colours.' }, { think: 'Red is the colour of danger. Why not fill a whole room with it and call it a day? Well. It worked.' }] });
-    // every examinable in the waiting room counts toward "looked around"
-    objs.forEach(function (o) { if (Array.isArray(o.examine)) o.examine = o.examine.concat([{ set: { ch10_redLooked: '+1' } }]); });
-    if (burning) {
-      RING.concat([RING_GAP]).forEach(function (p, i) { objs.push({ id: 'ch10_fire' + i, at: p, prop: 'ch10:fire', solid: false, layer: 1, free: true }); });
-      objs.push({ id: 'ch10_logsgap', at: RING_GAP, prop: 'ch10:logs', solid: true, free: true });
-    }
+    var py = pyre();
+    py.forEach(function (o) {
+      o.examine = /^gas/.test(o.id)
+        ? [{ narrate: 'A red can. The cap is off. The smell is enough to make your eyes water.' }, { think: 'Petrol. In a basement with no windows.' }, REDLOOK]
+        : [{ think: 'Firewood. Split oak, stacked in a ring around the cuffs. There\'s no fireplace in this room.' }, REDLOOK];
+    });
+    var fires = [];
+    if (burning) py.forEach(function (o, i) { if (/^wood/.test(o.id)) fires.push({ id: 'ch10_fire' + i, at: o.at, prop: 'ch10:fire', solid: false, layer: 1 }); });
+    var objs = py.concat(fires);
+    objs.push({ id: 'ch10_drain', at: [9, 6], prop: 'ch10:drain', solid: false, layer: -1, examine: [{ think: 'A drain in the floor. Why would a room need a drain.' }, { think: 'I know why.' }, REDLOOK] });
+    if (burning) { objs.push({ id: 'ch10_logsgap', at: RING_GAP, prop: 'ch10:logs', solid: true }); objs.push({ id: 'ch10_firegap', at: RING_GAP, prop: 'ch10:fire', solid: false, layer: 1 }); }
     var npcs = [
       { id: 'isaiah', spec: 'isaiah_pj', at: LINE[0], facing: 'up', talk: async function (api) {
           await api.say('isaiah', 'Did you know the colour red raises your heart rate? There are studies. I wish I didn\'t know that.', { mood: 'fear' });
@@ -369,62 +342,69 @@
           await api.say('annette', 'Lovely colours. Bit loud for my taste. Still, it\'ll hide the stains, won\'t it.', { mood: 'smug' });
           api.add('ch10_examined', 1);
         } },
-      { id: 'ginerva', at: [DOOR_IN[0] + 3, DOOR_IN[1] - 1], facing: 'left', talk: [['ginerva', 'You will stand where you are put and you will not speak. That is all I am permitted to say.']] },
-      { id: 'trader', at: DOOR_IN, visible: false, free: true },
-      { id: 'judge', spec: 'judge_white', at: DOOR_IN, visible: false, free: true },
-      { id: 'kessie', spec: burning ? 'shadow_kessie' : 'kessie_beaten', at: K_AT, visible: !!burning, free: true },
-      { id: 'elephant', spec: burning ? 'shadow_elephant' : 'tb_elephant', at: E_AT, visible: !!burning, free: true },
-      { id: 'tb_dog', spec: 'tb_dog', at: [CUFF[0] - 3, CUFF[1] + 2], visible: !!burning, free: true },
-      { id: 'tb_turtle', spec: 'tb_turtle', at: [CUFF[0] + 3, CUFF[1] + 2], visible: !!burning, free: true }
+      { id: 'ginerva', at: GIN_POST, facing: 'down', talk: [['ginerva', 'You will stand where you are put and you will not speak. That is all I am permitted to say.']] },
+      { id: 'trader', at: burning ? TRADER_CORNER : DOOR_IN, visible: !!burning, facing: 'right' },
+      { id: 'judge', spec: 'judge_white', at: burning ? JUDGE_AT : DOOR_IN, visible: !!burning, facing: 'up' },
+      { id: 'kessie', spec: burning ? 'shadow_kessie' : 'kessie_beaten', at: K_AT, visible: !!burning },
+      { id: 'elephant', spec: burning ? 'shadow_elephant' : 'tb_elephant', at: E_AT, visible: !!burning },
+      { id: 'tb_dog', spec: 'tb_dog', at: [CUFF[0] - 3, CUFF[1]], visible: !!burning },
+      { id: 'tb_turtle', spec: 'tb_turtle', at: [CUFF[0] + 3, CUFF[1]], visible: !!burning }
     ];
-    if (burning) {
-      npcs[4].visible = true; npcs[4].at = [1, LINE[0][1] - 1];
-      npcs[5].visible = true; npcs[5].at = JUDGE_AT; npcs[5].facing = 'down';
-      npcs.forEach(function (n) { if (n.id !== 'judge') n.talk = null; });
-    }
-    var ext = {
+    if (burning) npcs.forEach(function (n) { n.talk = null; });
+    return {
       ambient: burning ? 'drone' : 'tension',
       dark: burning ? 0.62 : 0.3, playerLight: burning ? 0 : 30,
       tint: burning ? '#ff3010' : '#ff0010', tintAlpha: burning ? 0.14 : 0.08,
-      lights: burning ? [{ at: K_AT, r: 70, flicker: true }, { at: E_AT, r: 70, flicker: true }, { at: CUFF, r: 50, flicker: true }] : [{ at: CUFF, r: 64 }],
+      lights: burning ? [{ at: K_AT, r: 70, flicker: true }, { at: E_AT, r: 70, flicker: true }, { at: CUFF, r: 50, flicker: true }] : [],
+      remove: ['drain'].concat(burning ? ['to_service_stair'] : []),
+      patch: burning ? {} : {
+        cuffs_1: { examine: [{ think: 'Three pairs of cuffs, silver, flecked with rust that gives them a reddish tint. Even the shackles match the room.' }, REDLOOK] },
+        cuffs_2: { examine: [{ think: 'Three pairs. Someone counted us. Then someone counted again.' }, REDLOOK] },
+        cuffs_3: { examine: [{ think: 'The rust is not all rust.' }, REDLOOK] },
+        cam_red: { examine: [{ think: 'The dot is flashing. Someone is watching this live.' }, { sound: 'camera' }, REDLOOK] },
+        to_service_stair: { locked: always, lockedText: [{ think: 'Ginerva is standing in front of the door, hands folded behind her back.' }] }
+      },
       npcs: npcs, objects: objs
     };
-    if (burning) { ext.exits = []; }
-    return ext;
   }
   var redRoom = room(RM, redFallback, redExt(false));
-  // The burning is a second copy of the same room (darker, fire-lit). Same tiles, same staging.
+  // The burning is a second copy of the same room (fire-lit, no exit), registered as a local map.
   var redBurn = room(RM, redFallback, redExt(true));
-  redBurn.name = 'The Red Room';
-  if (hasShared(RM)) redBurn.exits = [];
+  redBurn.exits = [];
 
   /* ---------------------------------------------------------------------
-   * MAP: memory flash, Columbus lounge, 8-year-old Luna and the TV.
+   * MAP: columbus_lounge as a memory (2060): eight-year-old Luna and the TV.
    * ------------------------------------------------------------------- */
   var memFallback = {
-    name: 'Columbus House, 2060',
+    name: 'Columbus House: Lounge',
     tiles: [
-      '###VV#####',
-      '#,,,,,,,,#',
-      '#,,RRRR,,#',
-      '#,,RRRR,,#',
-      '#h,,,,,,h#',
-      '#,,,,,,,,#',
-      '##########'
+      '##############',
+      '#####V########',
+      '#............#',
+      '#.......hhh..#',
+      '#............#',
+      '#.....RRRRR..#',
+      '#.....RRRRR..#',
+      '#.....RRRRR..#',
+      '#............#',
+      '##############'
     ],
-    spawn: [4, 5]
+    spawn: [7, 8],
+    objects: [{ id: 'lounge_tv', at: [9, 1], solid: false }]
   };
-  var TV_AT = mark(ROOMS.memory, 'tv', [4, 0]);
   var memory = room(ROOMS.memory, memFallback, {
+    name: 'Columbus House, 2060',
     ambient: 'static', tint: '#a0a0b0', tintAlpha: 0.25, vignette: 0.85, dark: 0.35,
-    lights: [{ at: [4, 1], r: 70, flicker: true }],
+    lights: [{ at: [9, 2], r: 70, flicker: true }],
+    remove: ['to_columbus_dorm', 'to_columbus_closet', 'to_columbus_office', 'to_columbus_yard'],
+    patch: { lounge_tv: { examine: null } },
     npcs: [
-      { id: 'ch10_kid1', spec: G.Sprites.randomSpec(31, { outfit: '#8a8a8a', height: 'child' }), at: [3, 2], facing: 'up', talk: [{ say: 'Kid', text: 'Shh! They\'re gonna say who won!', portrait: false }] },
-      { id: 'ch10_kid2', spec: G.Sprites.randomSpec(32, { outfit: '#8a8a8a', height: 'child' }), at: [6, 2], facing: 'up', talk: [{ say: 'Kid', text: 'True believer! True believer\'s mom is on TV!', portrait: false }] },
-      { id: 'ch10_kid3', spec: G.Sprites.randomSpec(33, { outfit: '#8a8a8a', height: 'child' }), at: [2, 4], facing: 'up' }
-    ],
-    objects: [{ id: 'ch10_memtv', at: [TV_AT[0], TV_AT[1] + 1], free: true, solid: false, examine: null }]
+      { id: 'ch10_kid1', spec: G.Sprites.randomSpec(31, { outfit: '#8a8a8a', height: 'child' }), at: [7, 2], facing: 'up', talk: [{ say: 'Kid', text: 'Shh! They\'re gonna say who won!', portrait: false }] },
+      { id: 'ch10_kid2', spec: G.Sprites.randomSpec(32, { outfit: '#8a8a8a', height: 'child' }), at: [11, 2], facing: 'up', talk: [{ say: 'Kid', text: 'True believer! True believer\'s mom is on TV!', portrait: false }] },
+      { id: 'ch10_kid3', spec: G.Sprites.randomSpec(33, { outfit: '#8a8a8a', height: 'child' }), at: [12, 4], facing: 'up' }
+    ]
   });
+  var MEM_START = spawn(ROOMS.memory, 'from_columbus_yard', [7, 8]);
 
   /* ---------------------------------------------------------------------
    * Full-screen drawings (slides). These only run in real play (autoplay skips slides).
@@ -572,6 +552,27 @@
     }
   };
 
+  /**
+   * Typing guard for the cipher. The engine maps W/A/S/D to directions, so in the cipher a typed
+   * "D" also moves the selection and an "S" also cycles the guess. While a cipher is open, this
+   * window capture-phase listener swallows those four keys and re-dispatches them as plain typed
+   * letters (code 'ch10Typed', which no action is mapped to). Installed only during Note 2.
+   */
+  function typingGuard() {
+    if (typeof window === 'undefined' || G.auto) return function () {};
+    var CODES = { KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1 };
+    function onKey(e) {
+      if (!CODES[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
+      e.stopImmediatePropagation(); e.preventDefault();
+      if (e.type === 'keydown' && !e.repeat) {
+        try { window.dispatchEvent(new KeyboardEvent('keydown', { key: e.key, code: 'ch10Typed' })); } catch (err) { /* ignore */ }
+      }
+    }
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('keyup', onKey, true);
+    return function () { window.removeEventListener('keydown', onKey, true); window.removeEventListener('keyup', onKey, true); };
+  }
+
   /* ---------------------------------------------------------------------
    * Helpers
    * ------------------------------------------------------------------- */
@@ -613,9 +614,10 @@
       await api.narrate('Thursday night. The lullaby played an hour ago. Nobody in this house is asleep.');
       await api.think('Two days since the interviews. Two days since Kessie\'s son said "Mom?" and fell down. Two days of her door staying shut.');
       if (api.get('f_kessie_secret_told', true)) await api.think('Annette may have done the reporting. But I was the one who told her. Tea or no tea.');
-      await api.until(function (f) { return (f.ch10_examined || 0) >= 2; }, { objective: 'Look around your room', targets: ['ch10_window', 'ch10_photo'] });
+      await api.until(function (f) { return (f.ch10_examined || 0) >= 2; }, { objective: 'Look around your room', targets: ['window', 'waverly_photo'] });
       api.objective(null);
       api.sound('ch10:knock');
+      api.set('ch10_summoned', true);
       await api.wait(300);
       await api.narrate('One knock. The lock clicks before the sound has finished.');
       await api.say('ginerva', 'Come.', { name: 'Ginerva (through the door)' });
@@ -643,7 +645,7 @@
       api.set('ch10_examined', 0);
       await api.until(function (f) { return (f.ch10_examined || 0) >= 1 && (f.ch10_redLooked || 0) >= 1; }, {
         objective: 'Wait. (Look around; talk to the others)',
-        targets: ['ch10_cuffs1', 'isaiah']
+        targets: ['cuffs_1', 'isaiah']
       });
       api.objective(null);
 
@@ -653,7 +655,7 @@
       api.onAir(true); api.approval(true);
       api.lowerThird('SPECIAL BROADCAST', 'Honesty', 3500, 'LIVE');
       api.show('trader'); api.sound('door');
-      await api.move('trader', [DOOR_IN[0] + 2, DOOR_IN[1] - 1], { speed: 70 });
+      await api.move('trader', [GIN_POST[0] + 1, GIN_POST[1]], { speed: 70 });
       api.face('trader', 'ginerva');
       await api.say('trader', 'I demand to know what you think you\'re doing. I am the host of this show and I will not be summoned like a common criminal.', { mood: 'angry' });
       await api.narrate('Ginerva raises an eyebrow. There isn\'t a person alive who could beat her at poker.');
@@ -667,11 +669,12 @@
       await api.say('judge', ['I have come…', 'To put an end to your childish nonsense.'], { name: 'Judge Johnson' });
       await api.say('trader', 'My… nonsense?', { mood: 'shock' });
       await api.say('trader', 'But, father, the show is grossing at-');
-      await api.move('judge', [DOOR_IN[0] + 1, DOOR_IN[1] - 1], { speed: 80 });
+      await api.move('judge', [GIN_POST[0] + 2, GIN_POST[1]], { speed: 80 });
+      api.face('judge', 'trader');
       api.sound('ch10:slap'); api.flash('#ffffff', 120); await api.shake(220, 3);
       await api.narrate('The slap echoes off the red walls. Delphin winces. Isaiah lets out a yelp and covers his mouth. Annette only smiles.');
       await api.say('judge', 'Do not call me father. You don\'t deserve to be my son.', { name: 'Judge Johnson', mood: 'angry' });
-      await api.move('trader', [1, LINE[0][1] - 1], { speed: 50 });
+      await api.move('trader', TRADER_CORNER, { speed: 50 });
       await api.say('trader', 'I… I\'m sorry. I didn\'t mean to disrespect you.', { mood: 'fear' });
       await api.say('judge', 'Good. We\'ll follow up that lesson in due time, but there is much to do.', { name: 'Judge Johnson' });
       await api.say('trader', 'How can I help you… Sir?', { mood: 'sad' });
@@ -742,12 +745,15 @@
       // ---- playable memory flash (about ten seconds): eight years old, the group-home TV ----
       api.setPlayer('luna_child_columbus');
       api.onAir(false); api.approval(false);
-      await api.goRoom(ROOMS.memory, { at: spawn(ROOMS.memory, 'from_memory', [4, 5]), facing: 'up', fade: false });
+      api.unlockPlayer();
+      api.set('ch10_memLooked', false);
+      api.onInteract('lounge_tv', function (a2) { a2.set('ch10_memLooked', true); });
+      await api.goRoom(ROOMS.memory, { at: MEM_START, facing: 'up', fade: false });
       await api.fadeIn(500);
       await api.narrate('Columbus House. You are eight. The other kids are crowded round the television.');
-      api.objective('Get closer to the screen', { target: 'ch10_memtv' });
       var memT0 = Date.now();
-      await Promise.race([api.waitForInteract('ch10_memtv'), api.until(function () { return Date.now() - memT0 > 10000; }, { target: 'ch10_memtv' })]);
+      // ten seconds: walk up to the screen, or the memory comes to you anyway
+      await api.until(function (f) { return f.ch10_memLooked || Date.now() - memT0 > 10000; }, { objective: 'Get closer to the screen', target: 'lounge_tv' });
       api.objective(null);
       api.sound('applause');
       await api.slides([
@@ -761,9 +767,10 @@
       api.sound('static');
       await api.fadeOut(300, '#000');
       api.setPlayer('luna_night');
+      api.lockPlayer();
       await api.goRoom(RM, { at: LINE[1], facing: 'up', fade: false });
       api.placeNpc('judge', before(1), 'down'); api.show('judge'); api.show('trader');
-      api.placeNpc('trader', [1, LINE[0][1] - 1], 'right');
+      api.placeNpc('trader', TRADER_CORNER, 'right');
       api.onAir(true); api.approval(true);
       await api.fadeIn(400);
       await api.think('The penguin. On the inside of his right forearm. "It\'s the company logo, Miss Luna."');
@@ -786,7 +793,7 @@
 
       /* ===== 9. Ginerva ===== */
       await api.move('judge', JUDGE_AT, { speed: 40 }); api.face('judge', 'down');
-      await api.move('ginerva', [DOOR_IN[0] + 1, DOOR_IN[1] - 1], { speed: 30 });
+      await api.move('ginerva', [DOOR_IN[0], DOOR_IN[1] + 1], { speed: 30 });
       await api.say('judge', 'Miss Malcont, your help is appreciated as always. I will be sure to give your superiors a positive review. If you would be so kind as to bring in our guests.', { name: 'Judge Johnson' });
       api.face('trader', 'ginerva');
       await api.say('trader', 'You? How could you? After everything we\'ve been through.', { mood: 'shock' });
@@ -798,7 +805,7 @@
       api.placeNpc('kessie', K_AT, 'down'); api.show('kessie');
       api.placeNpc('elephant', E_AT, 'down'); api.show('elephant');
       api.show('tb_dog'); api.show('tb_turtle');
-      api.placeNpc('ginerva', [DOOR_IN[0] + 3, DOOR_IN[1] - 1], 'up');
+      api.placeNpc('ginerva', GIN_POST, 'down');
       api.addObject({ id: 'ch10_logsgap', at: RING_GAP, prop: 'ch10:logs', solid: true });
       await api.fadeIn(500);
       await api.narrate('Dog and Turtle drag them in. Elephant, still in her robe and mask, holds her head high in her chains. Kessie is in nothing but a slip.');
@@ -895,9 +902,10 @@
       api.onAir(false); api.approval(false); api.lowerThird(null);
 
       /* ===== 14. Waking, 03:00. The PA. ===== */
+      api.unlockPlayer();
       api.set('ch10_woke', true);
       await api.titleCard('Friday 26 January', '03:00', 2200);
-      await api.goRoom(ROOMS.luna, { at: [7, 3], facing: 'down', fade: true });
+      await api.goRoom(ROOMS.luna, { at: L_BED, facing: 'down', fade: true });
       await api.narrate('Your own bed. Your own ceiling. The smell of smoke is in your hair, your sheets, your mouth.');
       if (lunged) await api.think('My left arm is still twitching. The chip. He just pressed a button.');
       api.sound('static');
@@ -905,7 +913,7 @@
       await api.think('Assist. Where he is able. The way a dog assists.');
       await api.think('Kessie forgave me. I don\'t know what to do with that. I don\'t think I ever will.');
       api.set('ch10_examined', 0);
-      await api.until(function (f) { return (f.ch10_examined || 0) >= 1; }, { objective: 'You can\'t sleep', targets: ['ch10_photo'] });
+      await api.until(function (f) { return (f.ch10_examined || 0) >= 1; }, { objective: 'You can\'t sleep', targets: ['waverly_photo'] });
       api.objective(null);
 
       /* ===== 15. The drawing ===== */
@@ -914,7 +922,7 @@
       await api.narrate('A soft scrape at the door. Paper on carpet.');
       await api.say('trader', 'She drew you something.', { name: 'A whisper through the door', portrait: false });
       await api.narrate('Footsteps going away down the hall. Uneven. Then nothing.');
-      api.addObject({ id: 'ch10_drawing', at: L_DOOR_IN, prop: 'ch10:crayon', solid: false });
+      api.addObject({ id: 'ch10_drawing', at: L_DOOR, prop: 'ch10:crayon', solid: false });
       await api.waitForInteract('ch10_drawing', { objective: 'Pick up what was slid under the door' });
       api.remove('ch10_drawing');
       await api.slides([{ style: 'black', draw: drawCrayon, caption: 'Crayon. You and Waverly on the steps of a beach house. Three cats.' }]);
@@ -942,7 +950,9 @@
         };
         if (hints >= 1) params.hint = hintText[Math.min(hints, 3)];
         if (hints >= 2) params.given = ['A'];
-        var res = await api.minigame('cipher', params);
+        var unguard = typingGuard();
+        var res;
+        try { res = await api.minigame('cipher', params); } finally { unguard(); }
         if (res && res.success) { solved = true; break; }
         // Gave up (TAB). Offer help, one step at a time, or let her sleep on it.
         var opts = [];
@@ -962,8 +972,8 @@
             await api.think('Mom had a rule. "Seven seconds. That\'s all it takes to overcome your initial instinct and process your second thought."');
             await api.think('When Wavey was seven we made the fridge code, and she named it after Grandma\'s rule. Seven.');
           } else if (hints === 2) {
-            api.objective('Use the booklet on the desk', { target: 'ch10_desk' });
-            await api.waitForInteract('ch10_desk');
+            api.objective('Use the booklet on the desk', { target: 'booklet' });
+            await api.waitForInteract('booklet');
             api.objective(null);
             await api.narrate('The DPE pen. The penguin booklet. In the margin you write A, and under it, the first number Waverly ever learned for it.');
             await api.think('A is eight. Add seven. Every number between eight and thirty-three.');

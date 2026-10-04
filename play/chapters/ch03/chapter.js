@@ -1117,8 +1117,9 @@
       await api.narrate('Outside the ballroom the world goes still without mercy. Footsteps echo. Portraits of old men in tight suits glare silent accusations.');
       api.lockPlayer();
       var pt = api.playerTile();
-      api.placeNpc('elephant', [pt.x - 1, pt.y], 'right');
-      api.face('player', 'left');
+      api.placeNpc('elephant', [pt.x > 2 ? pt.x - 1 : pt.x + 1, pt.y], pt.x > 2 ? 'right' : 'left');
+      api.show('elephant');
+      api.face('player', 'elephant');
       api.sound('heartbeat');
       await api.narrate('A quiet shuffling. Hot breath on your neck. You turn your head and nearly bash it into a golden elephant mask.');
       await api.think('Here\'s the thing about True Believers: they\'re creepy. The flowing black robes. The ridged gloves. The pointed shoes that never lose their shine. And the masks. Always golden. Always an animal.');
@@ -1239,8 +1240,8 @@
       api.set('ch03_memWait', false);
       api.objective(null);
       api.set('ch03_lookedAtArrest', looked);
-      api.addNpc({ id: 'tb1', spec: 'tb', at: [16, 6], facing: 'up' });
-      api.addNpc({ id: 'tb2', spec: 'tb', at: [15, 5], facing: 'up' });
+      api.addNpc({ id: 'tb1', spec: 'tb_boar', at: [16, 6], facing: 'up' });
+      api.addNpc({ id: 'tb2', spec: 'tb_dog', at: [15, 5], facing: 'up' });
       api.sound('alarm');
       await api.shake(400, 3);
       if (looked) {

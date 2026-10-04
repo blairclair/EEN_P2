@@ -31,37 +31,6 @@
   'use strict';
 
   /* ---------------------------------------------------------------------
-   * Shared locations. ONE constants object. A shared map is used only once
-   * its layout has been checked against the coordinates below
-   * (verified:true); until then the local fallback layout is used, so a
-   * shared map landing mid-build can't put NPCs inside walls.
-   * ------------------------------------------------------------------- */
-  var SHARED = {
-    amph:      { id: 'execution_amphitheatre', verified: false },
-    screening: { id: 'house_screening_room',   verified: false },
-    lounge:    { id: 'house_lounge',           verified: false },
-    hall:      { id: 'house_bedroom_hall',     verified: false },
-    dorm:      { id: 'columbus_dorm',          verified: false },
-    library:   { id: 'house_library',          verified: false }
-  };
-  var ARRAYS = ['npcs', 'objects', 'zones', 'exits', 'lights'];
-  function extendMap(base, ext) {
-    var m = G.cloneDef ? G.cloneDef(base) : JSON.parse(JSON.stringify(base));
-    Object.keys(ext || {}).forEach(function (k) {
-      if (ARRAYS.indexOf(k) >= 0) m[k] = (m[k] || []).concat(ext[k]);
-      else if (k === 'legend') { m.legend = m.legend || {}; Object.keys(ext.legend).forEach(function (c) { m.legend[c] = ext.legend[c]; }); }
-      else if (k !== 'remove') m[k] = ext[k];
-    });
-    return m;
-  }
-  function houseRoom(key, fallback, ext) {
-    var s = SHARED[key];
-    if (s.verified && G.shared && G.shared.has && G.shared.has(s.id)) return G.shared.map(s.id, ext);
-    return extendMap(fallback, ext);
-  }
-  function rep(c, n) { return new Array(n + 1).join(c); }
-
-  /* ---------------------------------------------------------------------
    * Cast: only chapter-specific extras; recurring people come from shared.
    * ------------------------------------------------------------------- */
   var X = function (kind, seed, o) { return (G.shared && G.shared.extra) ? G.shared.extra(kind, seed, o) : G.Sprites.randomSpec(seed, o); };
@@ -72,45 +41,10 @@
   };
 
   /* ---------------------------------------------------------------------
-   * Custom tiles and props (pixel art, low-res canvas).
+   * Props (pixel art, low-res canvas).
    * ------------------------------------------------------------------- */
   function px(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
-  var tiles = {
-    stageedge: { solid: true, wall: true, draw: function (g, x, y, info) {
-      px(g, x, y, 16, 16, '#120e18'); px(g, x, y, 16, 3, '#3a2f4a'); px(g, x, y + 3, 16, 1, '#c9a24a');
-      for (var i = 0; i < 16; i += 4) px(g, x + i + (info.tx % 2) * 2, y + 6, 2, 8, '#1d1726');
-    } },
-    cambank: { solid: true, anim: true, draw: function (g, x, y, info) {
-      px(g, x, y, 16, 16, '#1b1c22'); px(g, x, y + 13, 16, 3, '#101014');
-      px(g, x + 2, y + 3, 5, 6, '#2c2f38'); px(g, x + 9, y + 3, 5, 6, '#2c2f38');
-      px(g, x + 3, y + 1, 3, 2, '#0a0a0e'); px(g, x + 10, y + 1, 3, 2, '#0a0a0e');
-      var on = Math.sin(info.t * 3 + info.tx * 1.7 + info.ty) > 0.2;
-      px(g, x + 6, y + 9, 1, 1, on ? '#ff3040' : '#501018'); px(g, x + 13, y + 9, 1, 1, on ? '#501018' : '#ff3040');
-    } },
-    shutdoor: { solid: true, wall: true, draw: function (g, x, y) {
-      px(g, x, y, 16, 16, '#25232d'); px(g, x + 2, y + 1, 12, 15, '#2a1d14');
-      px(g, x + 3, y + 2, 10, 14, '#5a3e28'); px(g, x + 3, y + 2, 10, 1, '#7a5a3e');
-      px(g, x + 6, y + 4, 4, 3, '#c9a24a'); px(g, x + 11, y + 9, 1, 2, '#d8b860');
-      px(g, x + 4, y + 12, 8, 1, '#3a2a1a');
-    } },
-    stairs: { draw: function (g, x, y) {
-      px(g, x, y, 16, 16, '#2a2028');
-      for (var i = 0; i < 16; i += 4) { px(g, x, y + i, 16, 3, '#4a3a40'); px(g, x, y + i + 3, 16, 1, '#1a1418'); }
-    } }
-  };
   var props = {
-    cage: function (g, x, y) {
-      px(g, x - 4, y - 10, 22, 24, 'rgba(0,0,0,0.35)');
-      px(g, x - 4, y - 10, 22, 2, '#5a5a62'); px(g, x - 4, y + 12, 22, 2, '#5a5a62');
-      for (var i = -4; i <= 16; i += 4) px(g, x + i, y - 10, 1, 24, '#8a8a92');
-      px(g, x - 3, y + 14, 3, 3, '#222'); px(g, x + 14, y + 14, 3, 3, '#222');
-    },
-    gallows: function (g, x, y) {
-      px(g, x + 7, y - 14, 3, 30, '#5a4030'); px(g, x - 2, y - 14, 12, 3, '#5a4030');
-      px(g, x - 1, y - 11, 1, 10, '#c8b890'); px(g, x - 3, y - 2, 5, 4, 'rgba(200,184,144,0.0)');
-      g.strokeStyle = '#c8b890'; g.lineWidth = 1; g.beginPath(); g.arc(x - 0.5, y + 1, 2.5, 0, Math.PI * 2); g.stroke();
-      px(g, x + 3, y + 14, 11, 2, '#2a2018');
-    },
     gurney: function (g, x, y) {
       // vertical gurney that fully covers the actor standing on this tile
       px(g, x, y - 13, 16, 30, '#2a2a30');
@@ -125,21 +59,13 @@
       px(g, x + 3, y + 8, 9, 4, '#8a6a4a'); px(g, x + 11, y + 5, 4, 4, '#8a6a4a'); px(g, x + 14, y + 7, 2, 1, '#222');
       px(g, x + 4, y + 12, 1, 3, '#6a4a2a'); px(g, x + 10, y + 12, 1, 3, '#6a4a2a'); px(g, x + 1, y + 7 + wag, 2, 1, '#8a6a4a');
     },
-    balloon: function (g, x, y, t, obj) {
-      var c = (obj && obj.def && obj.def.color) || '#e8323c';
-      var b = Math.round(Math.sin(t * 1.5 + x) * 1.5);
-      g.fillStyle = c; g.beginPath(); g.arc(x + 8, y - 6 + b, 4, 0, Math.PI * 2); g.fill();
-      px(g, x + 8, y - 2 + b, 1, 12, 'rgba(220,220,220,0.6)');
-    },
-    kite: function (g, x, y, t, obj) {
-      var c = (obj && obj.def && obj.def.color) || '#e8c15a';
-      g.fillStyle = c; g.beginPath(); g.moveTo(x + 8, y - 8); g.lineTo(x + 13, y - 2); g.lineTo(x + 8, y + 5); g.lineTo(x + 3, y - 2); g.fill();
-      px(g, x + 8, y + 5, 1, 6, '#ddd'); px(g, x + 7, y + 8, 3, 1, '#e8323c');
-    },
-    sleeper: function (g, x, y, t) {
-      // Trader passed out across the hall couch (two tiles wide)
-      px(g, x + 2, y + 2, 28, 10, '#6a3a4a'); px(g, x + 2, y + 2, 28, 2, '#7a4a5a');
-      px(g, x + 6, y + 4, 18, 6, '#f2f0ea'); px(g, x + 23, y + 3, 6, 6, '#d8a274'); px(g, x + 24, y + 3, 5, 2, '#e0c068');
+    couch: function (g, x, y, t) {
+      // two-tile velvet couch; Trader passed out on it once ch06_traderOnCouch is set
+      px(g, x + 1, y + 1, 30, 13, '#3a1a2a'); px(g, x + 2, y + 2, 28, 4, '#6a3a4a'); px(g, x + 2, y + 6, 28, 6, '#5a2a3a');
+      px(g, x + 1, y + 4, 3, 9, '#4a2030'); px(g, x + 28, y + 4, 3, 9, '#4a2030'); px(g, x + 3, y + 13, 2, 2, '#1a0a10'); px(g, x + 27, y + 13, 2, 2, '#1a0a10');
+      var f = G.Game && G.Game.state && G.Game.state.flags;
+      if (!f || !f.ch06_traderOnCouch) return;
+      px(g, x + 6, y + 4, 18, 6, '#f2f0ea'); px(g, x + 6, y + 9, 18, 1, '#c8c6c0'); px(g, x + 23, y + 3, 6, 6, '#d8a274'); px(g, x + 24, y + 3, 5, 2, '#e0c068');
       px(g, x + 3, y + 6, 4, 3, '#2a2a30');
       var z = (t * 0.8) % 1;
       g.globalAlpha = 1 - z; px(g, x + 28 + z * 4, y - 2 - z * 8, 3, 1, '#ddd'); px(g, x + 29 + z * 4, y - 1 - z * 8, 1, 1, '#ddd'); px(g, x + 28 + z * 4, y - z * 8, 3, 1, '#ddd'); g.globalAlpha = 1;
@@ -153,245 +79,145 @@
   };
 
   /* ---------------------------------------------------------------------
-   * MAPS (fallback layouts; coordinates below belong to these layouts)
+   * MAPS: all shared (play/shared). Keys ARE the shared ids so the
+   * cross-room doors link (screening -> hall -> foyer -> red hall -> lounge
+   * / library). ONE constants object for every id and mark used below.
    * ------------------------------------------------------------------- */
-  function wrapRows(mid) { return '#' + mid + '#'; }
-  var amphBase = {
-    name: 'Execution Amphitheatre',
-    tiles: [
-      rep('C', 8) + rep('E', 14) + rep('C', 8),
-      'C' + rep('s', 28) + 'C',
-      'C' + rep('s', 14) + 'f' + rep('s', 13) + 'C',
-      'C' + rep('s', 28) + 'C',
-      rep('Z', 30),
-      wrapRows('_' + rep('n', 6) + rep('_', 12) + rep('n', 6) + '___'),
-      wrapRows(rep('_', 28)),
-      wrapRows('_' + rep('v', 11) + '__' + rep('v', 13) + '_'),
-      wrapRows('_' + rep('v', 11) + '__' + rep('v', 13) + '_'),
-      wrapRows('_' + rep('v', 11) + '__' + rep('v', 13) + '_'),
-      wrapRows(rep('_', 28)),
-      wrapRows(rep('n', 12) + '__' + rep('n', 13) + '_'),
-      wrapRows(rep('_', 28)),
-      wrapRows(rep('n', 12) + '__' + rep('n', 13) + '_'),
-      wrapRows(rep('_', 28)),
-      wrapRows('_' + rep('n', 26) + '_'),
-      wrapRows(rep('_', 28)),
-      rep('#', 30)
-    ],
-    legend: { Z: 'stageedge', v: 'cambank' },
-    ambient: 'crowd', dark: 0.42, vignette: 0.6, tint: '#401018', tintAlpha: 0.08,
-    lights: [{ at: [15, 2], r: 70 }, { at: [6, 2], r: 44, flicker: true }, { at: [24, 2], r: 44, flicker: true }, { at: [15, 0], r: 60 }],
-    npcs: [], objects: [], zones: [], exits: []
+  var ROOM = {
+    amph: 'execution_amphitheatre',
+    screening: 'house_screening_room',
+    hall: 'house_bedroom_hall',
+    foyer: 'house_foyer',
+    redHall: 'house_red_hall',
+    lounge: 'house_lounge',
+    library: 'house_library',
+    dorm: 'columbus_dorm'
   };
-  function crowd(id, at, kind, seed, extra) {
-    var d = { id: id, at: at, spec: X(kind, seed), facing: 'up', turn: false };
-    Object.keys(extra || {}).forEach(function (k) { d[k] = extra[k]; });
-    return d;
-  }
-  // walking past the stage edge shows John somebody in the crowd
+  // spawn/mark lookup with a literal fallback (marks verified against the shared files 2026-10-04)
+  function at(map, name, dflt) { var p = G.shared && G.shared.at ? G.shared.at(map, name) : null; return p || dflt; }
+  var MK = {
+    cage: at(ROOM.amph, 'from_cage', [5, 4]),
+    stage: at(ROOM.amph, 'stage_center', [15, 4]),
+    wingR: at(ROOM.amph, 'wing_right', [26, 4]),
+    crowd: at(ROOM.amph, 'crowd_front', [15, 12]),
+    screenSeat: [4, 4],                                    // the aisle in front of the seats
+    screenTrader: at(ROOM.screening, 'trader', [8, 2]),
+    screenDoor: at(ROOM.screening, 'door', [4, 6]),
+    loungeDoor: at(ROOM.lounge, 'from_red_hall', [6, 8]),
+    hallStair: at(ROOM.hall, 'from_foyer', [3, 2]),
+    hallDelphin: at(ROOM.hall, 'door_6', [21, 4]),
+    nook: at(ROOM.library, 'nook', [10, 2]),
+    libDoor: at(ROOM.library, 'from_red_hall', [6, 10])
+  };
+
+  // walking along the stage shows John somebody in the crowd
   function vignetteZone(id, x, who, lines, vendor) {
-    return { id: id, at: [x, 1], w: 1, h: 3, once: true, run: async function (api) {
+    return { id: id, at: [x, 2], w: 1, h: 5, once: true, run: async function (api) {
       await api.pan(who, 700);
       if (vendor) await api.say('vendor', 'Tomatoes, two for five! T-shirts! "I saw John die and all I got was this bloody T-shirt"!', { mood: 'happy' });
       for (var i = 0; i < lines.length; i++) await api.narrate(lines[i]);
       await api.cameraReset(600);
     } };
   }
-  var amph = houseRoom('amph', amphBase, {
+  function npc(id, xy, spec, facing) { return { id: id, at: xy, spec: spec, facing: facing || 'up', turn: false }; }
+  var amph = G.shared.map(ROOM.amph, {
+    remove: ['gurney'],                                   // ours is wheeled in mid-scene (ch06_gurney)
     npcs: [
-      { id: 'tb1', at: [9, 1], spec: 'tb', facing: 'down', turn: false },
-      { id: 'tb2', at: [21, 1], spec: 'tb', facing: 'down', turn: false },
-      { id: 'not_trader', at: [27, 2], spec: 'not_trader', facing: 'left', visible: false, turn: false },
-      { id: 'doctor', at: [16, 3], spec: 'doctor', facing: 'left', visible: false, turn: false },
-      { id: 'sec1', at: [12, 6], spec: 'security', facing: 'down', turn: false },
-      { id: 'sec2', at: [17, 6], spec: 'security', facing: 'down', turn: false },
-      crowd('widow', [4, 6], 'audience', 61, { spec: { extends: 'audience', name: 'The Widow', outfit: '#141418', outfit2: '#141418', hairStyle: 'bun', hair: '#2a1a12' } }),
-      crowd('widow_f1', [3, 6], 'audience', 62), crowd('widow_f2', [6, 6], 'audience', 63),
-      crowd('vip1', [21, 6], 'guest', 71), crowd('vip2', [23, 6], 'guest', 72), crowd('vip3', [25, 6], 'guest', 73),
-      crowd('med', [5, 12], 'audience', 11, { spec: { extends: 'audience', name: 'Medical Student', outfit: '#e8eef0', outfit2: '#3a3a44', hairStyle: 'slick', accessory: 'glasses' } }),
-      crowd('mom', [9, 12], 'audience', 12, { spec: { extends: 'audience', name: 'Mother', outfit: '#6a5a7a', hairStyle: 'long' } }),
-      { id: 'girl', at: [10, 12], spec: 'kid', facing: 'up', turn: false },
-      crowd('handler', [26, 12], 'citizen', 13, { spec: { extends: 'security', name: 'Dog Handler', outfit: '#3a4a3a', outfit2: '#2a3028', accessory: 'cap' } }),
-      { id: 'vendor', at: [13, 10], spec: 'vendor', facing: 'up', turn: false },
-      crowd('fan1', [2, 12], 'audience', 21), crowd('fan2', [16, 12], 'audience', 22), crowd('fan3', [19, 12], 'guest', 23),
-      crowd('fan4', [22, 12], 'audience', 24), crowd('teen1', [18, 14], 'citizen', 31), crowd('teen2', [19, 14], 'citizen', 32),
-      crowd('old1', [7, 14], 'guest', 41), crowd('old2', [8, 14], 'guest', 42), crowd('fan5', [3, 14], 'audience', 43),
-      crowd('fan6', [24, 14], 'audience', 44), crowd('fan7', [12, 14], 'citizen', 45),
-      { id: 'pris1', at: [9, 16], spec: 'inmate', facing: 'up', turn: false },
-      { id: 'pris2', at: [11, 16], spec: 'inmate', facing: 'up', turn: false },
-      { id: 'pris3', at: [13, 16], spec: 'inmate', facing: 'up', turn: false },
-      { id: 'pris4', at: [15, 16], spec: 'inmate', facing: 'up', turn: false }
+      npc('tb1', [10, 2], 'tb', 'down'), npc('tb2', [21, 2], 'tb', 'down'),
+      { id: 'not_trader', at: MK.wingR, spec: 'not_trader', facing: 'left', visible: false, turn: false },
+      { id: 'doctor', at: [14, 3], spec: 'doctor', facing: 'right', visible: false, turn: false },
+      npc('sec1', at(ROOM.amph, 'security_1', [10, 8]), 'security', 'down'),
+      npc('sec2', at(ROOM.amph, 'security_2', [13, 8]), 'security', 'down'),
+      npc('sec3', at(ROOM.amph, 'security_3', [18, 8]), 'security', 'down'),
+      npc('sec4', at(ROOM.amph, 'security_4', [21, 8]), 'security', 'down'),
+      npc('widow', [4, 10], { extends: 'audience', name: 'The Widow', outfit: '#141418', outfit2: '#141418', hairStyle: 'bun', hair: '#2a1a12' }),
+      npc('widow_f1', [2, 10], X('audience', 62)), npc('widow_f2', [5, 11], X('audience', 63)),
+      npc('vip1', [26, 11], X('guest', 71)), npc('vip2', [28, 11], X('guest', 72)),
+      npc('med', [6, 13], { extends: 'audience', name: 'Medical Student', outfit: '#e8eef0', outfit2: '#3a3a44', hairStyle: 'slick', accessory: 'glasses' }),
+      npc('mom', [10, 13], { extends: 'audience', name: 'Mother', outfit: '#6a5a7a', hairStyle: 'long' }),
+      npc('girl', [11, 13], 'kid'),
+      npc('handler', [21, 13], { extends: 'security', name: 'Dog Handler', outfit: '#3a4a3a', outfit2: '#2a3028', accessory: 'cap' })
     ],
     objects: [
-      { id: 'cage', at: [2, 2], draw: props.cage, solid: true, examine: 'The cage he rode in on. He never wants to see the inside of it again. He won\'t have to.' },
-      { id: 'gallows', at: [17, 1], draw: props.gallows, solid: true, examine: 'A pole and a rope, waiting for a vote.' },
-      { id: 'dog', at: [27, 12], draw: props.dog, solid: true },
-      { id: 'balloon1', at: [3, 10], draw: props.balloon, solid: false, layer: 1, color: '#e8323c' },
-      { id: 'balloon2', at: [23, 10], draw: props.balloon, solid: false, layer: 1, color: '#3fc1c9' },
-      { id: 'kite1', at: [10, 15], draw: props.kite, solid: false, layer: 1, color: '#e8c15a' },
-      { id: 'kite2', at: [26, 15], draw: props.kite, solid: false, layer: 1, color: '#c84aa0' },
-      { id: 'balloon3', at: [20, 5], draw: props.balloon, solid: false, layer: 1, color: '#e8c15a' }
+      { id: 'ch06_dog', at: [22, 13], draw: props.dog, solid: true }
     ],
     zones: [
-      vignetteZone('z_widow', 5, 'widow', ['The front row is the place of honour. Here sits the wife of the man John killed, with her friends and family.', 'Some genuinely want to support her. Many just want a chance to appear on TV.']),
-      vignetteZone('z_med', 7, 'med', ['A medical student. He told his professor that watching an execution would further his studies.', 'What he really wants is to understand why the sight of the light leaving a man\'s eyes wakes something hungry inside him. He\'s top of his class. His parents won\'t allow any less.']),
-      vignetteZone('z_mom', 9, 'mom', ['A mother and her daughter clutch hands. They don\'t want to be here. They\'ve been given no choice.', 'The little girl has been saying things in public that stink of sedition. Last week: a knock on the door, an adjustment agent, two True Believers in tow, and tickets it was strongly suggested they accept.']),
-      vignetteZone('z_dog', 11, 'handler', ['There\'s even a dog. He sniffs everyone at the turnstile. His handler casts uneasy glances at the stage between treats and praise.', 'He knows this isn\'t right. But work is work, and work pays in a way that unemployment never will.']),
-      vignetteZone('z_vendor', 13, 'vendor', ['Across the country, thousands stare into their screens, praying: please, if there\'s anyone out there, please don\'t let me be next.', 'But still, they watch. They need the social credit, after all.'], true),
-      { id: 'mark', at: [15, 1], w: 1, h: 3 }
+      vignetteZone('z_widow', 7, 'widow', ['The front row is the place of honour. Here sits the wife of the man John killed, with her friends and family.', 'Some genuinely want to support her. Many just want a chance to appear on TV.']),
+      vignetteZone('z_med', 9, 'med', ['A medical student. He told his professor that watching an execution would further his studies.', 'What he really wants is to understand why the sight of the light leaving a man\'s eyes wakes something hungry inside him. He\'s top of his class. His parents won\'t allow any less.']),
+      vignetteZone('z_mom', 11, 'mom', ['A mother and her daughter clutch hands. They don\'t want to be here. They\'ve been given no choice.', 'The little girl has been saying things in public that stink of sedition. Last week: a knock on the door, an adjustment agent, two True Believers in tow, and tickets it was strongly suggested they accept.']),
+      vignetteZone('z_dog', 12, 'handler', ['There\'s even a dog. He sniffs everyone at the turnstile. His handler casts uneasy glances at the stage between treats and praise.', 'He knows this isn\'t right. But work is work, and work pays in a way that unemployment never will.']),
+      vignetteZone('z_vendor', 13, 'vendor_1', ['Across the country, thousands stare into their screens, praying: please, if there\'s anyone out there, please don\'t let me be next.', 'But still, they watch. They need the social credit, after all.'], true),
+      { id: 'mark', at: [MK.stage[0], 2], w: 1, h: 5 }
     ]
   });
 
-  var screeningBase = {
-    name: 'Screening Room',
-    tiles: [
-      '##EEEEEE##',
-      '#........#',
-      '#.cccccc.#',
-      '#........#',
-      '#.cccccc.#',
-      '#........#',
-      '#.cccccc.#',
-      '####D#####'
-    ],
-    ambient: 'hum', dark: 0.35, tint: '#203048', tintAlpha: 0.15,
-    lights: [{ at: [4, 0], r: 60 }],
-    npcs: [], objects: [], zones: [], exits: []
-  };
-  var screening = houseRoom('screening', screeningBase, {
-    npcs: [{ id: 'trader', at: [8, 5], facing: 'left', visible: false }],
+  var screening = G.shared.map(ROOM.screening, {
+    npcs: [{ id: 'trader', at: MK.screenTrader, facing: 'left', visible: false }],
     objects: [
-      { id: 'frozen', at: [3, 0], draw: props.frozen, solid: true, examine: [{ think: 'The last frame. He looks like he fell asleep on a bus. I can\'t stop looking at it.' }] },
-      { id: 'ch06_cam', at: [8, 1], prop: 'camera', examine: [{ think: 'It came down out of the ceiling while I was watching. It hasn\'t blinked since.' }, { sound: 'camera' }] }
+      { id: 'ch06_frozen', at: [3, 0], draw: props.frozen, solid: false, layer: 1, examine: [{ think: 'The last frame. He looks like he fell asleep on a bus. I can\'t stop looking at it.' }] }
     ],
-    exits: [{ id: 'ch06_toLounge', at: [4, 7], to: 'lounge', toAt: [7, 7], facing: 'up', locked: '!ch06_interviewDone', lockedText: [{ think: 'Not yet. He hasn\'t finished with me.' }] }]
+    patch: { to_bedroom_hall: { locked: '!ch06_interviewDone', lockedText: [{ think: 'Not yet. He hasn\'t finished with me.' }] } }
   });
 
-  var loungeBase = {
-    name: 'Lounge',
-    tiles: [
-      '#####EEEE##M####',
-      '#k....,,,,....P#',
-      '#k.hhh,,,,hhh..#',
-      '#....,,RR,,....#',
-      '#....,,RR,,....#',
-      '#..hhh,,,,hhh..#',
-      '#P...,,,,,.....#',
-      '#..............#',
-      '#######D########'
-    ],
-    ambient: 'hum', tint: '#302030', tintAlpha: 0.12,
-    npcs: [], objects: [], zones: [], exits: []
-  };
-  var lounge = houseRoom('lounge', loungeBase, {
+  var hall = G.shared.map(ROOM.hall, {
+    dark: 0.55, playerLight: 44, ambient: 'tension',
     npcs: [
-      { id: 'trader', at: [8, 1], facing: 'down' },
-      { id: 'kessie', at: [2, 6], facing: 'right' },
-      { id: 'isaiah', at: [12, 6], facing: 'up' },
-      { id: 'carol', at: [8, 6], facing: 'up', turn: false },
-      { id: 'delphin', at: [4, 3], facing: 'down' },
-      { id: 'annette', at: [14, 3], facing: 'left' },
-      { id: 'cameraman', at: [1, 4], facing: 'right', turn: false }
+      { id: 'trader', at: [20, 2], facing: 'left', visible: false, turn: false },
+      { id: 'delphin', at: MK.hallDelphin, facing: 'up', visible: false }
     ],
     objects: [
-      { id: 'pillow1', at: [4, 2], examine: 'An embroidered pillow: "Cry Pretty".' },
-      { id: 'pillow2', at: [11, 5], examine: 'An embroidered pillow: "Betray, But Make It Art".' },
-      { id: 'mirror', at: [11, 0], examine: [{ think: 'The mirror Carol and Kessie fought over. Tonight nobody wants to look in it.' }] },
-      { id: 'wallscreen', at: [6, 0], examine: [{ think: 'Somebody turned it off. Somebody else turned it back on. The penguin logo floats there, smiling.' }] }
+      { id: 'ch06_couch', at: [5, 4], draw: props.couch, solid: true, layer: 1,
+        examine: function (api) { return api.has('ch06_traderOnCouch') ? api.think('Snoring. In a white suit. The most powerful man in the House, drooling on a cushion.') : api.narrate('A velvet couch at the top of the stairs. Nobody ever sits on it.'); } }
     ],
-    exits: [{ id: 'ch06_toHall', at: [7, 8], to: 'hall', toAt: [21, 4], facing: 'up', locked: '!ch06_loungeDone', lockedText: [{ think: 'Not yet. I can\'t walk out on them like this.' }] }]
+    zones: [{ id: 'ambush', at: [8, 1], w: 2, h: 4, if: 'ch06_loungeDone' }],
+    patch: {
+      to_screening_room: { locked: 'ch06_interviewDone', lockedText: [{ think: 'I am not going back in there.' }] },
+      to_luna_room: { locked: true, lockedText: [{ think: 'Locked. The watch decides when I get to sleep.' }] }
+    }
   });
 
-  var hallBase = {
-    name: 'Bedroom Hall',
-    tiles: [
-      '###Y###Y###Y###Y##W#####',
-      '#' + rep(',', 17) + '.....#',
-      '#' + rep(',', 17) + '.hh..#',
-      '#' + rep(',', 17) + '.....#',
-      '#####Y###Y###Y#######zz#',
-      rep(' ', 21) + 'zz '
-    ],
-    legend: { Y: 'shutdoor', z: 'stairs' },
-    ambient: 'tension', dark: 0.62, playerLight: 44, tint: '#101830', tintAlpha: 0.18,
-    lights: [{ at: [18, 0], r: 46 }, { at: [7, 0], r: 26, flicker: true }],
-    npcs: [], objects: [], zones: [], exits: []
-  };
-  var DOORS = { 3: 1, 7: 3, 11: 5, 15: 7 };
-  var hallDoorObjs = Object.keys(DOORS).map(function (x) {
-    var n = DOORS[x];
-    return { id: 'door' + n, at: [+x, 0], examine: n === 3 ? 'Room 3. Yours. Inside: the pink comforter, the cold sheets, and the eye in the smoke detector.' : 'Room ' + n + '.' };
-  }).concat([
-    { id: 'door2', at: [5, 4], examine: 'Room 2. Carol\'s. Silent.' },
-    { id: 'door4', at: [9, 4], examine: [{ think: 'Room 4. John\'s. Someone has already taken the number off the door.' }] },
-    { id: 'door6', at: [13, 4], examine: 'Room 6. Delphin\'s.' }
-  ]);
-  var hall = houseRoom('hall', hallBase, {
+  var foyer = G.shared.map(ROOM.foyer);
+
+  var redHall = G.shared.map(ROOM.redHall, {
+    patch: {
+      to_lounge: { locked: 'ch06_loungeDone', lockedText: [{ think: 'Nobody left in there but Carol and a camera.' }] },
+      to_library: { locked: '!ch06_rescued', lockedText: [{ think: 'Not tonight. Bed.' }] }
+    }
+  });
+
+  var lounge = G.shared.map(ROOM.lounge, {
     npcs: [
-      { id: 'trader', at: [2, 2], facing: 'right', visible: false, turn: false },
-      { id: 'delphin', at: [22, 3], facing: 'left', visible: false }
+      { id: 'trader', at: [6, 2], facing: 'down' },
+      { id: 'kessie', at: [1, 4], facing: 'right' },
+      { id: 'isaiah', at: [11, 7], facing: 'up' },
+      { id: 'carol', at: [7, 4], facing: 'up', turn: false },
+      { id: 'delphin', at: [3, 2], facing: 'down' },
+      { id: 'annette', at: [11, 4], facing: 'left' },
+      { id: 'cameraman', at: [1, 7], facing: 'right', turn: false }
     ],
-    objects: hallDoorObjs.concat([
-      { id: 'hallcam', at: [16, 0], prop: 'camera', examine: [{ think: 'Solid red. Recording, not watching. Somebody will review this later. Somebody always does.' }] }
-    ]),
-    zones: [{ id: 'ambush', at: [12, 1], w: 2, h: 3 }],
-    exits: [
-      { id: 'ch06_toLibrary', at: [21, 5], w: 2, h: 1, to: 'library', toAt: [6, 8], facing: 'up', locked: '!ch06_rescued', lockedText: [{ think: 'Lockdown in minutes. Bed. Now.' }] }
-    ]
+    patch: {
+      lounge_mirror: { examine: [{ think: 'The mirror Carol and Kessie fought over. Tonight nobody wants to look in it.' }] },
+      lounge_screen: { examine: [{ think: 'Somebody turned it off. Somebody else turned it back on. The penguin logo floats there, smiling.' }] },
+      to_red_hall: { locked: '!ch06_loungeDone', lockedText: [{ think: 'Not yet. I can\'t walk out on them like this.' }] }
+    }
   });
 
-  var dormBase = {
-    name: 'Columbus House',
-    tiles: [
-      '#####W###W###',
-      '#b.b...V...b#',
-      '#...........#',
-      '#b.b.,,,.b.b#',
-      '#....,,,....#',
-      '#b.b.....b.b#',
-      '#.....@.....#',
-      '#############'
-    ],
-    ambient: 'static', dark: 0.5, tint: '#4a3060', tintAlpha: 0.22, vignette: 0.8,
-    lights: [{ at: [7, 1], r: 64, flicker: true }],
-    npcs: [], objects: [], zones: [], exits: []
-  };
-  var dorm = houseRoom('dorm', dormBase, {
-    npcs: [
-      { id: 'kid1', at: [5, 3], spec: 'kid', facing: 'up', turn: false },
-      { id: 'kid2', at: [9, 4], spec: X('kid', 5), facing: 'up', turn: false },
-      { id: 'kid3', at: [10, 2], spec: X('kid', 9), facing: 'left', turn: false }
-    ],
-    objects: [{ id: 'ch06_tv', at: [7, 1] }]
+  var dorm = G.shared.map(ROOM.dorm, {
+    dark: 0.5, tint: '#4a3060', tintAlpha: 0.22, vignette: 0.8, ambient: 'static',
+    lights: [{ at: [8, 2], r: 64, flicker: true }],
+    npcs: [npc('kid1', [5, 4], 'kid'), npc('kid2', [10, 5], X('kid', 5)), npc('kid3', [11, 7], X('kid', 9), 'left')],
+    patch: { to_columbus_lounge: { locked: true, lockedText: [{ think: 'My feet won\'t take me away from the screen.' }] } }
   });
 
-  var libraryBase = {
-    name: 'Library',
-    tiles: [
-      '#####W########',
-      '#kkkk...kkk.c#',
-      '#k..........c#',
-      '#k...,,,,....#',
-      '#k..c,,,,c..k#',
-      '#k...,TT,...k#',
-      '#k..c,,,,c..k#',
-      '#k...,,,,...k#',
-      '#kk........kk#',
-      '######D#######'
-    ],
-    ambient: 'hum', dark: 0.8, playerLight: 34, tint: '#10203a', tintAlpha: 0.25, vignette: 0.6,
-    lights: [{ at: [5, 1], r: 70 }],
-    npcs: [], objects: [], zones: [], exits: []
-  };
-  var library = houseRoom('library', libraryBase, {
-    npcs: [{ id: 'delphin', at: [12, 2], facing: 'left' }],
-    objects: [
-      { id: 'libsign', at: [7, 0], examine: 'A fluorescent-blue sign, switched off for the night: "Books may not be removed from the library. Violators will face punitive measures."' },
-      { id: 'newberry', at: [6, 5], examine: [{ think: 'The Newberry Twins, Book 9: Meet a Lion. Waverly would have finished it in an afternoon and made me guess the ending.' }] },
-      { id: 'spine', at: [9, 1], examine: [{ think: 'One of these spines is a camera. Isaiah showed me which. From the nook it can hear you, but it can\'t see you.' }] },
-      { id: 'window', at: [5, 0], examine: 'Moonlight, and the almond blossoms pale as ash beyond the glass.' }
-    ]
+  var library = G.shared.map(ROOM.library, {
+    dark: 0.8, playerLight: 34, tint: '#10203a', tintAlpha: 0.25, vignette: 0.6,
+    npcs: [{ id: 'delphin', at: MK.nook, facing: 'left' }],
+    patch: {
+      library_newberry: { examine: [{ think: 'The Newberry Twins, Book 9: Meet a Lion. Waverly would have finished it in an afternoon and made me guess the ending.' }] },
+      library_nook: { examine: [{ think: 'The nook. The camera in the book spine can hear you here, but it can\'t see you.' }] }
+    }
   });
+  library.lights = [{ at: [9, 2], r: 40 }, { at: [2, 10], r: 22, flicker: true }];   // lamps off: replace, not append
 
   /* ---------------------------------------------------------------------
    * MINIGAMES
@@ -454,7 +280,7 @@
         });
         var cur = { x: cx, y: cy }, held = null, heldT = 0, pulseAt = 2.2, pulse = 0, done = false;
         function pos(o) { return { x: cx + Math.cos(o.ang) * o.orbit * 1.55, y: cy + Math.sin(o.ang) * o.orbit * 0.8 }; }
-        function radius() { return Math.max(22, 175 - ctx.t * 4.2); }
+        function radius() { return Math.max(22, 128 - ctx.t * 4); }   // first memory fades ~9 s, last ~22 s
         ctx.loop(function (dt) {
           if (done) return;
           if (held) {
@@ -502,7 +328,7 @@
             g.fillStyle = '#fff'; g.beginPath(); g.arc(p.x, p.y, 2.5 + Math.sin(t * 3 + o.orbit) * 0.6, 0, Math.PI * 2); g.fill();
             g.restore();
             var near = Math.abs(p.x - cur.x) < 26 && Math.abs(p.y - cur.y) < 20;
-            if (near && !held) R.text(o.m.label, p.x, p.y - 22, { size: 8, font: 'serif', style: 'italic', align: 'center', color: '#f0e6d8', alpha: a });
+            if (!held) R.text(o.m.label, p.x, p.y - 22, { size: near ? 8 : 7, font: 'serif', style: 'italic', align: 'center', color: near ? '#f0e6d8' : '#8a7a80', alpha: a * (near ? 1 : 0.7) });
           });
           if (!held) {
             g.save(); g.fillStyle = 'rgba(255,236,200,0.9)'; g.beginPath(); g.arc(cur.x, cur.y, 3, 0, Math.PI * 2); g.fill();
@@ -559,10 +385,10 @@
   async function partJohn(api) {
     await api.slides([{ style: 'black', text: '', draw: drawMemo }]);
     api.setPlayer('john');
-    await api.goRoom('amph', { at: [3, 2], facing: 'right', fade: true });
+    await api.goRoom(ROOM.amph, { at: MK.cage, facing: 'right', fade: true });
     api.lockPlayer();
     await api.narrate('The execution chamber is enormous. A former amphitheatre, its vaulted ceilings so high that no creature but a bird could reach the top on its own.');
-    await api.pan([15, 9], 1400);
+    await api.pan(MK.crowd, 1400);
     await api.narrate('Cameras fill the bottom three rows, pointing from every angle. Only the top three rows are left for human beings. Kites and balloons are taped up wherever the decorator gave up on order.');
     await api.cameraReset(900);
     api.onAir(true);
@@ -578,12 +404,12 @@
     await api.waitForZone('mark', { objective: 'Walk to the mark' });
     api.objective(null);
     api.lockPlayer();
-    api.teleport([15, 2], 'down');
+    api.teleport(MK.stage, 'down');
     await api.narrate('He\'s parked at the centre of the stage, next to the noose. John wonders if it will hurt. He wonders if anyone would care if it does.');
 
     // Not-Trader
     api.show('not_trader');
-    await api.move('not_trader', [17, 3], { speed: 34 });
+    await api.move('not_trader', [MK.stage[0] + 2, MK.stage[1]], { speed: 34 });
     api.face('not_trader', 'down');
     await api.narrate('There\'s a man on stage now. He\'s not Trader, but someone close. Almost an older version of the television host John has gotten to know over the past week.');
     await api.narrate('He lacks Trader\'s showmanship. He speaks with a firm assurance that makes John want to obey.');
@@ -603,7 +429,7 @@
     api.set('ch06_method', poll.method || 'injection');
     await api.narrate('These will be the last words he ever hears. No one cares. No one ever cared. The vote is almost unanimous: a chemical, to stop his heart.');
 
-    await api.move('not_trader', [16, 2], { speed: 30 });
+    await api.move('not_trader', [MK.stage[0] + 1, MK.stage[1]], { speed: 30 });
     api.face('not_trader', 'left');
     await api.narrate('Not-Trader crouches down to acknowledge John for the first time. His cold sneer makes John feel disgusting. Worthless. Lower than trash.');
     await api.narrate('He wants to beg the man for forgiveness. Not for the murder he committed, but for the crime of being himself. He can\'t. They injected something to keep his voice from being heard.');
@@ -612,9 +438,9 @@
 
     // the gurney
     await api.fadeOut(500);
-    api.addObject({ id: 'gurney', at: [15, 2], draw: props.gurney, solid: false, layer: 1 });
-    api.placeNpc('tb1', [14, 1], 'down'); api.placeNpc('tb2', [16, 1], 'down');
-    api.placeNpc('not_trader', [17, 2], 'left');
+    api.addObject({ id: 'ch06_gurney', at: MK.stage, draw: props.gurney, solid: false, layer: 1 });
+    api.placeNpc('tb1', [MK.stage[0] - 1, MK.stage[1] - 1], 'down'); api.placeNpc('tb2', [MK.stage[0] + 1, MK.stage[1] - 1], 'down');
+    api.placeNpc('not_trader', [MK.stage[0] + 2, MK.stage[1]], 'left');
     api.show('doctor');
     await api.fadeIn(500);
     await api.narrate('True Believers flood the stage. They drag in a gurney. John is pulled from beside the noose and strapped to crisp white sheets.');
@@ -686,7 +512,7 @@
    * ------------------------------------------------------------------- */
   async function partScreening(api) {
     api.setPlayer('luna');
-    await api.goRoom('screening', { at: [4, 4], facing: 'up', fade: false });
+    await api.goRoom(ROOM.screening, { at: MK.screenSeat, facing: 'up', fade: false });
     await api.fadeIn(900);
     api.lockPlayer();
     await api.narrate('The screen freezes on the final frame. John, slack on the white sheets like a discarded doll. No blood. No spectacle. Just the silence after something irreversible.');
@@ -694,10 +520,10 @@
     api.sound('camera');
     await api.narrate('A mechanical whir behind me, then a soft click. A camera extends from the ceiling and turns toward me like a predator sniffing a fresh scent.');
     api.onAir(true);
-    api.approval(api.approval());
+    api.approval(true);
     api.lowerThird('LUNA BARTLEY', 'Reaction cam • Screening Room');
     api.show('trader');
-    await api.move('trader', [5, 3], { speed: 50 });
+    await api.move('trader', [MK.screenSeat[0] + 1, MK.screenSeat[1]], { speed: 50 });
     api.face('trader', 'player'); api.face('player', 'trader');
     await api.say('trader', 'Luna. How are you feeling?');
     var c = await api.choice([
@@ -727,14 +553,14 @@
     await api.slides([{ style: 'screen', text: 'AUDIENCE RANKINGS UPDATED\nCURRENT STANDING: 2ND' }]);
     await api.think('Of course. Rewarded for the pain. For the tears. For performing humanity in a world that profits off erasing it.');
     await api.say('trader', 'Your housemates are in the lounge. Go on. The people like a group shot.');
-    await api.move('trader', [4, 7], { speed: 50 });
+    await api.move('trader', MK.screenDoor, { speed: 50 });
     api.hide('trader');
     api.onAir(false);
     api.approval(false);
     api.set('ch06_interviewDone', true);
     api.unlockPlayer();
     await api.think('The red dot stays on. Always recording. Always watching.');
-    await api.waitForRoom('lounge', { objective: 'Go down to the lounge' });
+    await api.waitForRoom(ROOM.lounge, { objective: 'Go down to the lounge' });
     api.objective(null);
   }
 
@@ -769,7 +595,8 @@
       await api.narrate('Carol\'s mouth hangs open, eyes still glued to the screen. She mutters nonsense syllables.');
       await api.say('luna', 'Carol? Are you okay?');
       await api.think('That\'s a stupid question. None of us are okay.');
-      api.placeNpc('delphin', [7, 6], 'right');
+      api.placeNpc('delphin', freeTile(api, [[6, 4], [8, 4], [8, 5], [6, 5]]), 'right');
+      api.face('delphin', 'carol');
       await api.say('delphin', 'I think what she\'s trying to ask is, on a scale from harmless rambling to full-on cannibalism, how crazy are you right now? Because if you\'ve got a sudden hankering for people, I\'d like to leave now.', { mood: 'smug' });
       api.face('carol', 'left');
       await api.narrate('Carol slowly twists her head until she meets my eyes. Her stare is glassy. No hint of recognition.');
@@ -812,7 +639,7 @@
     await api.say('kessie', 'Come again?');
     await api.say('trader', 'Nothing. Don\'t worry about it.');
     await api.cameraReset(400);
-    await api.move('trader', [7, 8], { speed: 70 });
+    await api.move('trader', MK.loungeDoor, { speed: 70 });
     api.hide('trader');
     await api.say('delphin', 'That was interesting. What\'s stuck up his craw?');
     await api.say('luna', 'Probably something to do with this mysterious him, yeah?');
@@ -821,15 +648,14 @@
     await api.say('annette', 'Fools. Didn\'t you notice the resemblance? You all make me so tired.', { mood: 'angry' });
     var a = await api.choice(['Resemblance to whom?', '(Let her go.)']);
     if (a === 0) { api.set('ch06_askedResemblance', true); await api.say('annette', 'Use your eyes, dear.', { mood: 'smug' }); }
-    await api.move('annette', [7, 7], { speed: 30 });
-    await api.move('annette', [7, 8], { speed: 30 });
+    await api.move('annette', MK.loungeDoor, { speed: 30 });
     api.hide('annette');
     await api.say('kessie', 'Resemblance? What could she mean by that?');
     await api.think('The man on the stage. An older version of the television host. I saw it and didn\'t let myself see it.');
     await api.say('isaiah', 'Don\'t know. I\'m going to go lie down. I have a lot to think about.', { mood: 'tired' });
     await api.say('delphin', 'Don\'t let us stop you. In fact, let us join you.');
-    await api.move('isaiah', [7, 8], { speed: 60 }); api.hide('isaiah');
-    await api.move('delphin', [7, 8], { speed: 60 }); api.hide('delphin');
+    await api.move('isaiah', MK.loungeDoor, { speed: 60 }); api.hide('isaiah');
+    await api.move('delphin', MK.loungeDoor, { speed: 60 }); api.hide('delphin');
     await api.say('kessie', 'There\'s nothing we can do for her. She made her choices. Now she\'ll have to deal with the consequences.', { mood: 'neutral' });
     await api.think('It\'s harsh. Too harsh. She\'s right, though.');
     var s = await api.choice(['(Sit with Carol a while.)', '(Leave her.)']);
@@ -843,13 +669,18 @@
     }
     api.set('ch06_loungeDone', true);
     api.unlockPlayer();
-    await api.waitForRoom('hall', { objective: 'Go up to bed before lockdown' });
+    await api.waitForRoom(ROOM.hall, { objective: 'Go up to bed before lockdown' });
     api.objective(null);
   }
 
   /* ---------------------------------------------------------------------
    * PART 4: the drunk Trader
    * ------------------------------------------------------------------- */
+  function freeTile(api, list) {
+    var me = api.playerTile();
+    for (var i = 0; i < list.length; i++) if (list[i][0] !== me.x || list[i][1] !== me.y) return list[i];
+    return list[list.length - 1];
+  }
   function timed(api, opts, ms, fallback) { return api.choice(opts, { timer: ms, timeoutPick: fallback }); }
   async function partHall(api) {
     api.lockPlayer();
@@ -864,7 +695,8 @@
     await api.shake(300, 2);
     api.show('trader');
     await api.narrate('A crash at the end of the hall. A man stumbles out of the dark.');
-    await api.move('trader', [Math.max(4, me.x - 2), 2], { speed: 34 });
+    api.placeNpc('trader', [me.x + 8, 2], 'left');
+    await api.move('trader', [me.x + 2, 2], { speed: 34 });
     api.face('player', 'trader');
     await api.say('trader', '\'S you. You\'re dead.', { mood: 'cry' });
     await api.think('He reeks of gin. His pupils are huge.');
@@ -875,8 +707,8 @@
     if (b1 === 0) await api.narrate('He doesn\'t seem to process what I said. He keeps coming until my back hits the wall.');
     else if (b1 === 1) await api.narrate('I duck, and he catches a fistful of my sleeve without even looking, and walks me backwards into the wall.');
     else await api.narrate('My legs don\'t move. He keeps coming until my back hits the wall.');
-    await api.move('trader', [me.x, 2], { speed: 30 });
-    api.face('trader', 'up');
+    await api.move('trader', [me.x + 1, 2], { speed: 30 });   // diagonal, so both faces stay visible
+    api.face('trader', 'left');
     await api.say('trader', 'Why? Why you do that to me? I love you.', { mood: 'cry' });
     await api.think('What?');
 
@@ -907,8 +739,8 @@
 
     // Delphin
     api.show('delphin');
-    api.placeNpc('delphin', [21, 3], 'left');
-    await api.move('delphin', [me.x + 1, 2], { speed: 130 });
+    api.placeNpc('delphin', MK.hallDelphin, 'up');
+    await api.move('delphin', [me.x + 2, 3], { speed: 130 });
     api.flash('#ffffff', 200); api.sound('hit');
     await api.shake(500, 4);
     await api.narrate('Something blue hits Trader from the side. Delphin. They go down together on the carpet, and Delphin comes up first.');
@@ -924,28 +756,28 @@
     await partFlashback(api);
 
     // back
-    await api.goRoom('hall', { at: [me.x, 1], facing: 'down', fade: false });
+    await api.goRoom(ROOM.hall, { at: [me.x, 1], facing: 'down', fade: false });
     api.lockPlayer();
     api.show('delphin'); api.show('trader');
+    api.placeNpc('delphin', [me.x + 1, 2], 'left'); api.placeNpc('trader', [me.x + 3, 3], 'left');
     api.face('delphin', 'player');
     await api.fadeIn(500);
     await api.say('delphin', 'Where do you go? When you zone out like that, where do you go?', { mood: 'neutral' });
     await api.say('luna', 'I don\'t understand it myself. I\'ve got these flashes of memories rising to the surface. Like they\'ve been drowning my whole life and only now learned to float.');
     await api.think('I don\'t know why I tell him. Maybe because he\'s the one who pulled a drunk off me. Maybe because there\'s nobody else awake to tell.');
     await api.say('delphin', 'Help me with him. Feet. Don\'t look at his face, it\'s worse when you look.');
-    await api.narrate('We drag Trader down the hall by his armpits and his expensive shoes, and dump him on the couch by the stairs. He doesn\'t wake.');
+    await api.narrate('We drag Trader down the hall by his armpits and his expensive shoes and dump him on the couch at the top of the stairs. He doesn\'t wake.');
     api.hide('trader');
     api.set('ch06_traderOnCouch', true);
-    api.addObject({ id: 'sleeper2', at: [19, 2], draw: props.sleeper, solid: true, layer: 1, examine: [{ think: 'Snoring. In a white suit. The most powerful man in the House, drooling on a cushion.' }] });
-    api.placeNpc('delphin', [21, 3], 'left');
-    api.teleport([18, 3], 'right');
+    api.placeNpc('delphin', [7, 3], 'left');
+    api.teleport([8, 3], 'left');
     await api.say('delphin', 'Library. Now.');
     await api.say('luna', 'It\'s nearly lockdown.');
     await api.say('delphin', 'Then walk. Stairwell\'s audio only. Running gets you noticed, walking doesn\'t.', { mood: 'smug' });
-    await api.move('delphin', [22, 4], { speed: 60 });
+    await api.move('delphin', MK.hallStair, { speed: 60 });
     api.hide('delphin');
     api.unlockPlayer();
-    await api.waitForRoom('library', { objective: 'Meet Delphin in the library' });
+    await api.waitForRoom(ROOM.library, { objective: 'Meet Delphin in the library' });
     api.objective(null);
   }
 
@@ -957,10 +789,10 @@
     await api.fadeOut(700, '#ffffff');
     await api.think('The slow zoom into my head. Everything around me disappearing, replaced by a past I don\'t recognise.');
     api.setPlayer('luna_child_columbus');
-    await api.goRoom('dorm', { at: [6, 6], facing: 'up', fade: false });
+    await api.goRoom(ROOM.dorm, { at: [8, 5], facing: 'up', fade: false });
     await api.fadeIn(900);
     await api.think('I\'m eight. The room is full of bunk beds and nobody is sleeping. Everybody is looking at the screen.');
-    await api.waitForInteract('ch06_tv', { objective: 'Watch the screen' });
+    await api.waitForInteract('dorm_tv', { objective: 'Watch the screen' });
     api.lockPlayer();
     await api.tv([
       { speaker: 'franchesca_show', headline: 'Rebellion Special', text: 'A woman in a grey jumpsuit under hard white lights. Red hair. My hair. My mother.' },
@@ -980,7 +812,7 @@
    * ------------------------------------------------------------------- */
   async function partLibrary(api) {
     api.lockPlayer();
-    await api.narrate('The library is dark. Lamps off. One window of moonlight, and the vibrant blue of Delphin\'s hair in the reading nook, the brightest thing in the room.');
+    await api.narrate('The library is dark. Lamps off but the one in the nook, turned down to an ember. The brightest thing in the room is the vibrant blue of Delphin\'s hair.');
     await api.think('The nook. The one place the spine-camera can\'t see. Of course he knows it. He taught me to find places like this.');
     api.unlockPlayer();
     await api.waitForInteract('delphin', { objective: 'Talk to Delphin in the reading nook' });
@@ -1036,7 +868,7 @@
     await api.say('delphin', 'But I think we both know the real reason I want you.');
     await api.say('luna', 'The group home thing.');
     await api.say('delphin', 'That\'s right, the group home thing. Us home kids gotta stick together, during the best of times and the worst. We came from the same place, and we\'ve got the same scars.');
-    await api.narrate('He leans into the moonlight and slowly rolls up his sleeve. Big and red, running the length of his forearm: HK-1082903.');
+    await api.narrate('He leans into the lamplight and slowly rolls up his sleeve. Big and red, running the length of his forearm: HK-1082903.');
     await api.think('A disciplinary tattoo. The programme that numbered the "worst" home kids and kept them in pods, away from the rest of us. It lasted one year. The tattoos are forever.');
     await api.think('They put him in the pods the month after Salina. I was in the closet when they took him. By the time I came out, he was a number, and he never looked at me again.');
     await api.say('delphin', 'I know you know what this means. And that\'s why I choose you, red. Join me. Become my ally.', { mood: 'neutral' });
@@ -1085,9 +917,9 @@
     id: 'ch06',
     title: 'Applause',
     kicker: 'SATURDAY 13 JANUARY 2084',
-    maps: { amph: amph, screening: screening, lounge: lounge, hall: hall, dorm: dorm, library: library },
+    maps: { execution_amphitheatre: amph, house_screening_room: screening, house_bedroom_hall: hall, house_foyer: foyer,
+            house_red_hall: redHall, house_lounge: lounge, house_library: library, columbus_dorm: dorm },
     cast: cast,
-    tiles: tiles,
     minigames: { poll: pollGame, memory: memoryGame },
     testDefaults: { m_audience: 45, m_delphin: 20, f_comforted_john: true, f_refused_vote_bloc: true },
 
