@@ -256,6 +256,8 @@
   function snDispatch(why) {
     if (SN.drone) return;
     SN.drone = { t: 4, room: SN.room, why: why };
+    G.log('[ch08 stealth] drone dispatched: ' + why);
+    snMsg(why, 3);
     SN.alert = 0; SN.susp = 0; SN.noise = 0;
     G.Audio.play('alarm'); G.UI.flash('#e8323c', 250);
   }
@@ -331,7 +333,7 @@
       if (sees({ x: n.x, y: n.y - 8, ang: dirAng(n.dir), fov: 80 * D2R, range: creep ? 48 : 66 }, p)) gSeen = id;
     });
     if (gSeen) SN.gAlert += dt * 2.2; else SN.gAlert -= dt;
-    if (SN.gAlert >= 1) { SN.caught = 'guard:' + gSeen; G.Audio.play('alarm'); return; }
+    if (SN.gAlert >= 1) { SN.caught = 'guard:' + gSeen; G.log('[ch08 stealth] seen by ' + gSeen); G.Audio.play('alarm'); return; }
     if (SN.susp >= 1) snDispatch('The AI flagged you sneaking.');
     if (SN.noise >= 1) snDispatch('The stair sensor heard you.');
     if (SN.alert >= 1) snDispatch(liveSeen ? 'Someone is watching that camera live.' : 'The floodlight flared.');
