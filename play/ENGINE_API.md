@@ -603,11 +603,13 @@ G.registerChapter({ id: 'ch05',
       objects: [{ id: 'ch05_cup', at: [2, 2], prop: 'teacup', examine: '...' }],
       zones: [], exits: [], lights: [],                                        // also appended
       remove:  ['kettle'],              // drop shared npcs/objects/zones/exits by id
+      patch:   { stove: { examine: [['luna', 'Still warm.']], solid: true } },  // shallow-merge fields into a shared entity by id
       legend:  { 'q': 'neon' },         // merged
       ambient: 'tension', dark: 0.3     // any other field REPLACES the shared value
     })
   }, ... });
 ```
+`patch` runs after `remove` and the appends. The fields replace the shared entity's fields of the same name (shallow merge; functions allowed). An unknown id logs a warning (`G.testState.warnings` and the test log) and is skipped.
 The copy is then registered as your local map (`'ch05:kitchen'`), so `api.goRoom('kitchen')`, exits, autoplay and
 `api.remove` all work as usual. `G.shared.has(name)` / `G.shared.list()` let you check what exists.
 Shared entity ids are visible to autoplay targets, so avoid reusing them for your own entities.
@@ -633,3 +635,5 @@ Changes after the API freeze. All are backwards compatible.
   - Fixed: the `qte` default `need` (when omitted) is now round(rounds*2/3), i.e. 2 of 3, instead of 3 of 3.
 - **2026-10-04 (c)**
   - Added: `G.manifest.game.flagDefaults` (canon meter defaults). They fill undefined flags at every chapter start (New Game, Continue, Chapter Select, `?chapter=`, each next chapter) without overwriting. `api.add`, `{add}` and `set` `'+N'` on an undefined key now start from the default instead of 0. Also added `G.flagDefaults()` and `G.applyFlagDefaults(flags)`. The audience meter with no value falls back to `flagDefaults.m_audience` (then 50). `tools/new-chapter.js` preserves the key.
+- **2026-10-04 (d)**
+  - Added: `patch: { <entityId>: {fields} }` in `G.shared.map(name, ext)`. It shallow-merges fields into the shared npc/object/zone/exit with that id in the chapter's copy (functions allowed; the shared original is untouched). An unknown id gives a warning, not an error.

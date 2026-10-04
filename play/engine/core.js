@@ -242,6 +242,7 @@
      *   G.shared.map('house_kitchen', { npcs:[...], objects:[...], zones:[...], exits:[...], lights:[...],
      *                                   remove:['oldNpcId'], ambient:'tension', ...any other map field overrides })
      * Arrays npcs/objects/zones/exits/lights are APPENDED; `legend` is merged; `remove` drops entities by id;
+     * `patch: {id: {fields}}` shallow-merges fields (functions allowed) into the shared npc/object/zone/exit with that id;
      * every other key replaces the shared value. The shared original is never mutated.
      */
     map: function (name, ext) {
@@ -251,12 +252,19 @@
       ext = ext || {};
       Object.keys(ext).forEach(function (k) {
         var v = cloneDef(ext[k]);
-        if (k === 'remove') return;
+        if (k === 'remove' || k === 'patch') return;
         if (['npcs', 'objects', 'zones', 'exits', 'lights'].indexOf(k) >= 0) m[k] = (m[k] || []).concat(v || []);
         else if (k === 'legend') m.legend = Object.assign({}, m.legend || {}, v);
         else m[k] = v;
       });
       if (ext.remove) ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { if (m[k]) m[k] = m[k].filter(function (e) { return ext.remove.indexOf(e.id) < 0; }); });
+      if (ext.patch) Object.keys(ext.patch).forEach(function (id) {
+        var hit = null;
+        ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { (m[k] || []).forEach(function (e) { if (!hit && e.id === id) hit = e; }); });
+        if (!hit) { G.warn('G.shared.map("' + name + '"): patch target "' + id + '" not found'); G.log('[warn] shared patch: no entity "' + id + '" in ' + name); return; }
+        var fields = cloneDef(ext.patch[id]);
+        Object.keys(fields).forEach(function (f) { hit[f] = fields[f]; });
+      });
       m.sharedFrom = name;
       return m;
     },
