@@ -130,7 +130,7 @@
       cameras: [cam('foyer_stagecam', [9, 3], { angle: 135, sweep: 70, range: 90, fov: 50, live: true, prop: 'stagecam' })],
       objects: [
         { id: 'foyer_portrait', at: [8, 0], prop: 'portrait_leader', solid: false, layer: 1, examine: [{ narrate: 'The Great Leader, reading to children. Every child in the painting is smiling exactly the same smile.' }] },
-        { id: 'foyer_penguin', at: [4, 0], prop: 'penguin_logo', solid: false, layer: 1, examine: [{ narrate: 'The DPE penguin. Department of Punitive Entertainment.' }] },
+        { id: 'foyer_penguin', at: [7, 0], prop: 'penguin_logo', solid: false, layer: 1, examine: [{ narrate: 'The DPE penguin. Department of Punitive Entertainment.' }] },
         { id: 'foyer_shelf', at: [2, 1], examine: [{ narrate: 'Shelves to the ceiling. The spines are real; the books are glued shut.' }] },
         { id: 'foyer_couch', at: [4, 4], examine: [{ narrate: 'Straight-backed leather. Built for posture, not comfort.' }] },
         { id: 'foyer_plant1', at: [1, 9], prop: 'candelabra', solid: true },
@@ -248,7 +248,7 @@
       cameras: [cam('library_cam', [7, 1], { angle: 90, sweep: 0, range: 80, fov: 60, prop: 'cam_eye' })],   // hidden in a book spine
       blindSpots: [{ id: 'library_nook_blind', at: [10, 2], w: 1, h: 2 }],
       objects: [
-        { id: 'library_sign', at: [5, 0], prop: 'sign_library', solid: false, layer: 1,
+        { id: 'library_sign', at: [8, 11], prop: 'sign_library', solid: false, layer: 1,
           examine: [{ narrate: '"BOOKS MAY NOT BE REMOVED FROM THE LIBRARY. VIOLATORS WILL FACE PUNITIVE MEASURES."' }] },
         { id: 'library_falsville', at: [3, 1], examine: [{ narrate: 'The children\'s section. A whole row of Falsville. Next to it, The Newberry Twins, books one to twelve.' }] },
         { id: 'library_newberry', at: [4, 1], examine: [{ narrate: 'The Newberry Twins, Book 9: The Newberry Twins Meet a Lion.' }] },
@@ -321,7 +321,7 @@
       lights: [{ at: [4, 3], r: 44, flicker: true }, { at: [9, 3], r: 44, flicker: true }, { at: [6, 4], r: 70 }],
       spawns: { from_red_hall: [6, 1] },
       marks: { head_west: [1, 4], head_east: [12, 4], under_table: [6, 4], seat_n1: [2, 2], seat_s1: [2, 5] },
-      cameras: [cam('dining_cam', [12, 0], { angle: 135, sweep: 30 })],
+      cameras: [cam('dining_cam', [11, 0], { angle: 135, sweep: 30 })],
       blindSpots: [{ id: 'dining_under_table', at: [2, 3], w: 10, h: 2 }],
       objects: [
         { id: 'dining_chandelier', at: [6, 3], prop: 'chandelier', solid: false, layer: 1 },
@@ -353,7 +353,7 @@
       lights: [{ at: [5, 4], r: 80 }, { at: [8, 1], r: 36 }],
       spawns: { from_red_hall: [5, 1] },
       marks: { tea_station: [8, 2], kettle: [8, 1], fridge: [9, 2], island_west: [3, 5], pantry: [9, 8], pantry_peek: [8, 8], bench: [2, 7], stove: [4, 2] },
-      cameras: [cam('kitchen_cam', [1, 0], { angle: 45, sweep: 50, range: 90 })],   // inactive 23:00-06:00 (chapters decide)
+      cameras: [cam('kitchen_cam', [0, 2], { angle: 0, sweep: 50, range: 90 })],   // inactive 23:00-06:00 (chapters decide)
       blindSpots: [{ id: 'kitchen_pantry_blind', at: [8, 7], w: 3, h: 3 }],
       objects: [
         { id: 'kitchen_kettle', at: [8, 1], prop: 'kettle', solid: false, layer: 1, examine: [{ narrate: 'Annette\'s tea station: a kettle, a tin of loose leaf, a row of little unlabelled jars.' }] },
@@ -383,7 +383,7 @@
       lights: [{ at: [3, 2], r: 60 }],
       spawns: { from_red_hall: [3, 1] },
       marks: { sink: [3, 3], stool_spot: [5, 3], stall1: [2, 5], stall2: [4, 5], button: [6, 3] },
-      cameras: [cam('bath_cam', [6, 0], { angle: 135, sweep: 0, range: 50, prop: 'cam_eye' })],   // filmed, never aired
+      cameras: [cam('bath_cam', [0, 3], { angle: 0, sweep: 0, range: 50, prop: 'cam_eye' })],   // filmed, never aired
       objects: [
         { id: 'bath_button', at: [6, 2], prop: 'red_button', examine: [{ narrate: 'A red button beside the mirror. The reflection behind you turns into a forest, then a throne room, then a fairy glade.' }] },
         { id: 'bath_stool', at: [5, 3], prop: 'stool', examine: [{ narrate: 'A little step stool by the sink.' }] }
@@ -425,7 +425,7 @@
       lights: [{ at: [4, 3], r: 70 }],
       spawns: { from_red_hall: [4, 7] },
       marks: { desk_chair: [5, 1], guest_chair: [4, 3], phone: [3, 2], couch_west: [2, 5], couch_east: [7, 5], closet: [1, 2] },
-      cameras: [cam('office_cam', [8, 0], { angle: 135, sweep: 0, range: 80 })],
+      cameras: [cam('office_cam', [7, 0], { angle: 135, sweep: 0, range: 80 })],
       objects: [
         { id: 'office_chandelier', at: [4, 4], prop: 'chandelier', solid: false, layer: 1 },
         { id: 'office_trader_chair', at: [5, 1], solid: true, draw: function (gg, x, y) { gg.fillStyle = '#c9a24a'; gg.fillRect(x + 2, y - 6, 12, 18); gg.fillStyle = '#e8c15a'; gg.fillRect(x + 3, y - 5, 10, 8); gg.fillStyle = '#8a1a2a'; gg.fillRect(x + 4, y + 4, 8, 6); } },
@@ -454,7 +454,7 @@
     g.rect(0, 2, W, 1, '+');                         // the fence
     g.set(44, 2, '"').set(45, 2, '"');               // the gap in the fence
     g.rect(40, 0, 4, 2, 'B');                        // True Believers' quarters shed (front)
-    g.set(41, 1, 'D');
+    g.set(43, 1, 'D');                              // shed door faces the alley path (east)
     g.rect(0, 2, 1, H - 2, '+').rect(W - 1, 2, 1, H - 2, '+').rect(0, H - 1, W, 1, '+');
     // house block (brick shell; interior is the foyer/hall maps)
     g.rect(8, 11, 44, 11, 'B').rect(8, 11, 44, 10, '^');   // slate roof, brick south face
@@ -474,7 +474,7 @@
       name: 'The Grounds', tiles: g.rows(), ambient: 'drone', tint: '#0a1428', tintAlpha: 0.15, dark: 0.35, playerLight: 46, bg: '#05080c',
       lights: [{ at: [6, 22], r: 60 }, { at: [53, 22], r: 60 }, { at: [13, 23], r: 50 }, { at: [30, 8], r: 40 }, { at: [42, 2], r: 30, flicker: true }],
       spawns: { from_foyer: [13, 23], from_gate: [13, 30], from_alley: [44, 1], garden: [30, 8], from_street: [13, 30] },
-      marks: { gate: [13, 30], jewel_door: [13, 22], keypad: [15, 21], luna_window: [30, 10], under_luna_window: [30, 8], fence_gap: [44, 3], shed: [41, 1],
+      marks: { gate: [13, 30], jewel_door: [13, 22], keypad: [15, 21], luna_window: [30, 10], under_luna_window: [30, 8], fence_gap: [44, 3], shed: [43, 1],
         kessie_fence_spot: [46, 3], drive: [13, 25], lawn_east: [40, 24], garden_west: [6, 6], garden_east: [52, 6] },
       cameras: [
         cam('grounds_cam_gate', [16, 30], { angle: 270, sweep: 60, range: 90, prop: false }),
