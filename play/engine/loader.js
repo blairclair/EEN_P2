@@ -8,6 +8,8 @@
   'use strict';
   var G = window.G;
   var files = [];
+  // shared assets first (after the engine, before every chapter)
+  (G.manifest.shared || []).forEach(function (f) { files.push(f); });
   (G.manifest.chapters || []).forEach(function (c) {
     (c.files && c.files.length ? c.files : ['chapter.js']).forEach(function (f) { files.push('chapters/' + c.id + '/' + f); });
   });

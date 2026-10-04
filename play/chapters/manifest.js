@@ -3,6 +3,7 @@
  * Edit with: node tools/new-chapter.js <id> "<title>" [--number N] [--hidden] [--files a.js,b.js]
  * (chapter agents never edit this file; the orchestrator does.)
  * Each chapter: { id, number, title, files: [paths inside chapters/<id>/], hidden? }
+ * shared: [paths relative to play/] loaded after the engine, before all chapters.
  * New Game plays non-hidden chapters in array order.
  * ========================================================================= */
 G.manifest = {
@@ -22,6 +23,7 @@ G.manifest = {
       "Built in parallel by many hands"
     ]
   },
+  "shared": ["shared/tiles.js", "shared/cast.js", "shared/locations.js"],
   "chapters": [
     { "id": "ch00", "number": 0, "title": "Rehearsal", "hidden": true, "files": ["chapter.js"] },
     { "id": "ch01", "number": 1, "title": "One Day, But Not Today", "files": ["chapter.js"] },

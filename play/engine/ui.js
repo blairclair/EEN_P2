@@ -147,7 +147,8 @@
     if (hud.lower) {
       var L = hud.lower, k = U.ease(U.clamp(L.t / 0.4, 0, 1));
       if (L.dur && L.t > L.dur - 0.4) k = U.ease(U.clamp((L.dur - L.t) / 0.4, 0, 1));
-      var lx = -220 + 228 * k, ly = 118;
+      // bottom of the screen like real TV; lifted above the dialogue box while one is open
+      var lx = -220 + 228 * k, ly = UI.blocking() ? 104 : G.H - 40;
       var w1 = Math.max(150, R.measure(L.title, 10) + 20), w2 = Math.max(150, R.measure(L.sub || '', 7) + 20);
       R.rect(lx, ly, w1, 16, P.red);
       R.rect(lx, ly, 3, 16, '#fff');

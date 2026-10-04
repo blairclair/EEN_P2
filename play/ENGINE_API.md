@@ -566,3 +566,51 @@ Draw in virtual 384×216 coordinates. Text is rendered crisply at native resolut
 - [ ] Ends with `api.completeChapter()`.
 - [ ] No load-time side effects; no globals besides what's on `G`; no external assets.
 - [ ] Minigames used have parameters that fit the scene; custom minigames have `autoSolve`.
+
+---
+
+## 15. Shared assets (`play/shared/`)
+
+Recurring locations and the canonical look of recurring characters are built once in `play/shared/`
+(owned by the shared-assets agent; chapter agents only *use* them). Files are listed in
+`chapters/manifest.js` → `"shared": [...]` and load **after the engine, before every chapter**.
+
+| API (used inside shared/*.js) | |
+|---|---|
+| `G.shared.registerMap(name, mapDef)` | a reusable location (map format of §3). Name it with a location prefix: `show_kitchen`, `prison_cell` |
+| `G.shared.registerCast(id, spec)` | merges `spec` over the built-in cast member `id` (or adds a new one) **globally**. Chapter `cast` overrides still apply on top |
+| `G.shared.registerTiles({name: def})` / `G.shared.registerProps({name: fn})` | global tile types and props, usable in every map |
+| `G.shared.data` | free-form shared constants |
+
+**Using a shared location in a chapter:** `G.shared.map(name, ext)` returns a **deep copy** (functions kept) that you
+put in your `maps`. The shared original is never mutated, so other chapters are unaffected.
+```js
+G.registerChapter({ id: 'ch05',
+  maps: {
+    kitchen: G.shared.map('show_kitchen', {
+      npcs:    [{ id: 'annette', at: [4, 3], talk: [['annette', 'Tea?']] }],  // APPENDED to the shared list
+      objects: [{ id: 'ch05_cup', at: [2, 2], prop: 'teacup', examine: '...' }],
+      zones: [], exits: [], lights: [],                                        // also appended
+      remove:  ['kettle'],              // drop shared npcs/objects/zones/exits by id
+      legend:  { 'q': 'neon' },         // merged
+      ambient: 'tension', dark: 0.3     // any other field REPLACES the shared value
+    })
+  }, ... });
+```
+The copy is then registered as your local map (`'ch05:kitchen'`), so `api.goRoom('kitchen')`, exits, autoplay and
+`api.remove` all work as usual. `G.shared.has(name)` / `G.shared.list()` let you check what exists.
+Shared entity ids are visible to autoplay targets, so avoid reusing them for your own entities.
+
+---
+
+## Engine changelog
+
+Changes after the API freeze. All are backwards compatible.
+
+- **2026-10-04**
+  - Added: manifest `shared: [...]` list, loaded by `engine/loader.js` after the engine and before chapters (§15).
+  - Added: the `G.shared` namespace (`registerMap`, `registerCast`, `registerTiles`, `registerProps`, `map(name, ext)`, `data`, `has`, `list`) and `G.cloneDef` (a deep copy that keeps functions).
+  - Added: `play/shared/` with README and stub files `tiles.js`, `cast.js`, `locations.js`.
+  - Changed (visual only): the lower third now sits at the bottom of the screen and lifts above the dialogue box while dialogue or a choice is open.
+  - Fixed: `tools/new-chapter.js` preserves the manifest `shared` list when rewriting the manifest.
+  - Fixed: an isolated autoplay test (`?chapter=X&auto=1`) stops after chapter X instead of running into the next chapter.

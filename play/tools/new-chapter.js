@@ -60,12 +60,14 @@ function writeManifest(m) {
  * Edit with: node tools/new-chapter.js <id> "<title>" [--number N] [--hidden] [--files a.js,b.js]
  * (chapter agents never edit this file; the orchestrator does.)
  * Each chapter: { id, number, title, files: [paths inside chapters/<id>/], hidden? }
+ * shared: [paths relative to play/] loaded after the engine, before all chapters.
  * New Game plays non-hidden chapters in array order.
  * ========================================================================= */
 `;
   const chapters = m.chapters.map((c) => '    ' + JSON.stringify(c).replace(/^\{/, '{ ').replace(/\}$/, ' }').replace(/,"/g, ', "').replace(/":/g, '": ')).join(',\n');
   const game = JSON.stringify(m.game || {}, null, 2).replace(/\n/g, '\n  ');
-  const out = `${header}G.manifest = {\n  "game": ${game},\n  "chapters": [\n${chapters}\n  ]\n};\n`;
+  const shared = JSON.stringify(m.shared || []);
+  const out = `${header}G.manifest = {\n  "game": ${game},\n  "shared": ${shared},\n  "chapters": [\n${chapters}\n  ]\n};\n`;
   fs.writeFileSync(MANIFEST, out);
 }
 

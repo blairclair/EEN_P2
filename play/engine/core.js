@@ -208,6 +208,62 @@
     } catch (e) { G.reportError(e, 'registerChapter'); }
   };
 
+  /* ---------------- shared assets (play/shared/*.js) ----------------
+   * Recurring locations / refined cast, built once and reused by chapters.
+   * Loaded after the engine and before any chapter (manifest `shared: [...]`).
+   */
+  function cloneDef(v) { // deep copy that keeps functions
+    if (Array.isArray(v)) return v.map(cloneDef);
+    if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
+      var o = {}; Object.keys(v).forEach(function (k) { o[k] = cloneDef(v[k]); }); return o;
+    }
+    return v;
+  }
+  G.cloneDef = cloneDef;
+  var sharedMaps = {};
+  G.shared = {
+    maps: sharedMaps,
+    data: {},
+    /** Register a reusable location (same format as a chapter map). */
+    registerMap: function (name, def) { sharedMaps[name] = def; return def; },
+    /** Update (merge over) a built-in cast member or add a new one, globally. */
+    registerCast: function (id, spec) {
+      var base = G.registry.cast[id] || {};
+      var merged = Object.assign({}, base, spec);
+      delete merged.id;
+      return G.registerCast(id, merged);
+    },
+    /** {name: tileDef} global tile types, usable from every map legend. */
+    registerTiles: function (obj) { Object.keys(obj).forEach(function (k) { G.registerTile(k, obj[k]); }); },
+    /** {name: fn(g,x,y,t,obj)} global props. */
+    registerProps: function (obj) { Object.keys(obj).forEach(function (k) { G.registerProp(k, obj[k]); }); },
+    /**
+     * Get a deep COPY of a shared map, extended for one chapter:
+     *   G.shared.map('house_kitchen', { npcs:[...], objects:[...], zones:[...], exits:[...], lights:[...],
+     *                                   remove:['oldNpcId'], ambient:'tension', ...any other map field overrides })
+     * Arrays npcs/objects/zones/exits/lights are APPENDED; `legend` is merged; `remove` drops entities by id;
+     * every other key replaces the shared value. The shared original is never mutated.
+     */
+    map: function (name, ext) {
+      var base = sharedMaps[name];
+      if (!base) { G.reportError(new Error('G.shared.map: no shared map "' + name + '" (check shared/ files and manifest.shared)'), 'shared'); base = { tiles: ['###', '#@#', '###'] }; }
+      var m = cloneDef(base);
+      ext = ext || {};
+      Object.keys(ext).forEach(function (k) {
+        var v = cloneDef(ext[k]);
+        if (k === 'remove') return;
+        if (['npcs', 'objects', 'zones', 'exits', 'lights'].indexOf(k) >= 0) m[k] = (m[k] || []).concat(v || []);
+        else if (k === 'legend') m.legend = Object.assign({}, m.legend || {}, v);
+        else m[k] = v;
+      });
+      if (ext.remove) ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { if (m[k]) m[k] = m[k].filter(function (e) { return ext.remove.indexOf(e.id) < 0; }); });
+      m.sharedFrom = name;
+      return m;
+    },
+    has: function (name) { return !!sharedMaps[name]; },
+    list: function () { return Object.keys(sharedMaps); }
+  };
+
   /** Ordered list of manifest chapters (only those that registered). */
   G.chapterList = function (includeHidden) {
     return (G.manifest.chapters || []).filter(function (c) {
