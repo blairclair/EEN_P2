@@ -739,6 +739,9 @@
   }, true);
 
   MAPS[R.luna] = useMap(R.luna, null, night({
+    // the window sits in wall row 0; pressed against the wall, the facing point lands back in row 1,
+    // so give the window spot itself an interactable (non-solid, invisible) twin
+    objects: [{ id: 'ch08_window', at: at(R.luna, 'window_spot', [4, 1]), solid: false }],
     lockExits: { to_bedroom_hall: { locked: '!ch08_doorOpen', lockedText: [{ think: 'The handle won\'t turn. 23:00 to 06:00, every night. A green button to summon Ginerva, as if.' }] } }
   }, 0.62));
 
@@ -1076,8 +1079,12 @@
     await api.goRoom(R.luna, { at: at(R.luna, 'center', [4, 5]), facing: 'up' });
     await api.think('I can\'t sleep. Every time I close my eyes, Carol\'s face, humiliated and covered in tomato pulp, flashes through my mind. Is that the end of the road I\'m on?');
     await api.think('Counting sheep. Breathing three-seven-five. A triangle, flashing over and over. Nothing erases the look on her face when that first tomato hit.');
-    api.objective('Pace. Look out the window.', { target: 'window' });
-    await api.waitForInteract('window');
+    api.objective('Pace. Look out the window.', { target: 'ch08_window' });
+    api.onInteract('window', function () { api.set('ch08_atWindow', true); });
+    api.onInteract('window_r', function () { api.set('ch08_atWindow', true); });
+    api.onInteract('ch08_window', function () { api.set('ch08_atWindow', true); });
+    await api.until(function (f) { return !!f.ch08_atWindow; }, { target: 'ch08_window' });
+    api.onInteract('window', null); api.onInteract('window_r', null); api.onInteract('ch08_window', null);
     api.objective(null);
     await api.narrate('The garden is black. Then: a flash of light by the fence. A near-silent step. Two shadows, the same two I saw before. A contestant and a True Believer, indistinguishable in the dark.');
     await api.think('I\'m at my door before I can think about it. It won\'t work. I\'m locked in here, remember?');
@@ -1252,7 +1259,8 @@
   async function greenRoom(api) {
     var K = 'ch08_kessie_g';
     await api.goRoom(R.green, { at: at(R.green, 'center', [4, 4]), facing: 'down', stayDark: true });
-    api.addNpc({ id: K, at: at(R.green, 'kessie_spot', [4, 5]), spec: 'kessie', facing: 'up' });
+    var gc = at(R.green, 'center', [4, 4]);
+    api.addNpc({ id: K, at: [gc[0] + 1, gc[1]], spec: 'kessie', facing: 'left' });
     api.face('player', K);
     await api.fadeIn(600);
     await api.narrate('Kessie leads me through a series of turns to an innocent-looking blue door. Inside: green walls, green floor, green ceiling, not a stick of furniture. Like swimming through algae.');
