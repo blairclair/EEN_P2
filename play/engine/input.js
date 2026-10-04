@@ -25,7 +25,8 @@
   I.pressedNow = {};
   I.typed = [];
   I.lastInputTime = 0;
-  I.listeners = [];     // fn(e) called on every keydown (audio unlock etc)
+  I.listeners = [];
+  I.lastPress = {};     // action -> performance.now() of last (non-repeat) press     // fn(e) called on every keydown (audio unlock etc)
 
   function onDown(e) {
     var a = MAP[e.code];
@@ -33,7 +34,7 @@
     I.lastInputTime = performance.now();
     I.keysHeld[e.code] = true;
     if (!e.repeat) {
-      if (a) pressedQ[a] = true;
+      if (a) { pressedQ[a] = true; I.lastPress[a] = performance.now(); }
       typedQ.push(e.key);
     } else if (a && a !== 'ok' && a !== 'menu') {
       pressedQ[a + '_repeat'] = true;
@@ -67,6 +68,9 @@
   I.repeat = function (a) { return !!(I.pressedNow[a] || I.pressedNow[a + '_repeat']); };
   /** Consume an action so lower layers don't also see it this frame. */
   I.consume = function (a) { if (a) delete I.pressedNow[a]; else { I.pressedNow = {}; I.typed = []; } };
+  /** Edge-latched: was action `a` pressed after time t (performance.now() ms)? Never misses a press between polls. */
+  I.pressedSince = function (a, t) { return (I.lastPress[a] || 0) > t; };
+  I.now = function () { return performance.now(); };
   /** Direction vector from held keys. */
   I.dir = function () {
     return { x: (I.down('right') ? 1 : 0) - (I.down('left') ? 1 : 0), y: (I.down('down') ? 1 : 0) - (I.down('up') ? 1 : 0) };

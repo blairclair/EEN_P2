@@ -42,6 +42,8 @@
     W.player.spec = 'luna'; W.player.visible = true; W.player.dir = 'down'; W.player.speed = 72;
     W.zoneInside = {};
   };
+  /** Record a runtime-added def, replacing any earlier def with the same id. */
+  function pushAdded(st, def) { st.added = st.added.filter(function (a) { return a.id !== def.id; }); st.added.push(def); delete st.removed[def.id]; }
   function rs(id) { return (W.roomState[id] = W.roomState[id] || { added: [], removed: {}, entered: 0, moved: {} }); }
 
   /**
@@ -60,12 +62,15 @@
     // entities
     W.npcs = []; W.objects = []; W.zones = []; W.exits = [];
     var check = G.Script.check;
-    (def.npcs || []).concat(st.added.filter(function (a) { return a.kind !== 'object'; })).forEach(function (n) {
+    // a runtime-added def shadows a map-defined entity with the same id (re-add after remove = one copy)
+    var addedIds = {}; st.added.forEach(function (a) { addedIds[a.id] = true; });
+    function base(list) { return (list || []).filter(function (e) { return !addedIds[e.id]; }); }
+    base(def.npcs).concat(st.added.filter(function (a) { return a.kind !== 'object'; })).forEach(function (n) {
       if (st.removed[n.id]) return;
       if (n.if != null && !check(n.if)) return;
       W.npcs.push(makeNpc(n, st));
     });
-    (def.objects || []).concat(st.added.filter(function (a) { return a.kind === 'object'; })).forEach(function (o) {
+    base(def.objects).concat(st.added.filter(function (a) { return a.kind === 'object'; })).forEach(function (o) {
       if (st.removed[o.id]) return;
       if (o.if != null && !check(o.if)) return;
       var p = xy(o.at || o);
@@ -138,16 +143,17 @@
   W.addNpc = function (def, mapId) {
     var id = mapId ? (G.lookupKey('maps', mapId) || mapId) : W.room && W.room.def.id;
     var st = rs(id);
-    st.added.push(def); delete st.removed[def.id];
-    if (W.room && W.room.def.id === id) { var n = makeNpc(def, null); W.npcs.push(n); return n; }
+    pushAdded(st, def);
+    if (W.room && W.room.def.id === id) { W.npcs = W.npcs.filter(function (x) { return x.id !== def.id; }); var n = makeNpc(def, null); W.npcs.push(n); return n; }
     return null;
   };
   W.addObject = function (def, mapId) {
     def.kind = 'object';
     var id = mapId ? (G.lookupKey('maps', mapId) || mapId) : W.room && W.room.def.id;
     var st = rs(id);
-    st.added.push(def); delete st.removed[def.id];
+    pushAdded(st, def);
     if (W.room && W.room.def.id === id) {
+      W.objects = W.objects.filter(function (x) { return x.id !== def.id; });
       var p = xy(def.at || def);
       var o = { id: def.id, kind: 'object', def: def, tx: p.x, ty: p.y, prop: def.prop || def.sprite || null, solid: def.solid != null ? def.solid : !!(def.prop || def.sprite), visible: true };
       W.objects.push(o); return o;
@@ -156,7 +162,9 @@
   };
   W.remove = function (id, mapId) {
     var mid = mapId ? (G.lookupKey('maps', mapId) || mapId) : W.room && W.room.def.id;
-    rs(mid).removed[id] = true;
+    var st = rs(mid);
+    st.removed[id] = true;
+    st.added = st.added.filter(function (a) { return a.id !== id; });
     if (W.room && W.room.def.id === mid) {
       W.npcs = W.npcs.filter(function (n) { return n.id !== id; });
       W.objects = W.objects.filter(function (n) { return n.id !== id; });

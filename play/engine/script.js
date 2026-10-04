@@ -378,7 +378,7 @@
 
     /* ----- flags ----- */
     api.get = function (k, def) { var v = G.Game.state.flags[k]; return v === undefined ? def : v; };
-    api.set = function (k, v) { if (typeof k === 'object') S.applySet(k); else G.Game.state.flags[k] = v === undefined ? true : v; };
+    api.set = function (k, v) { if (typeof k === 'object') S.applySet(k); else if (typeof v === 'string' && /^[+-]\d+(\.\d+)?$/.test(v)) { var o = {}; o[k] = v; S.applySet(o); } else G.Game.state.flags[k] = v === undefined ? true : v; };
     api.add = function (k, n) { var f = G.Game.state.flags; f[k] = S.numBase(k) + (n == null ? 1 : n); return f[k]; };
     api.has = function (k) { return !!G.Game.state.flags[k]; };
     api.check = S.check;
@@ -542,6 +542,36 @@
           if (ok) resolve(); else setTimeout(poll, G.auto ? 0 : 50);
         })();
       });
+    });
+    /**
+     * Wait for a key press. keys: action name(s) ('ok','up','down','left','right','menu','back','tab')
+     * or KeyboardEvent codes/keys ('KeyF', 'f'). Default ['ok']. Resolves with the matched key.
+     * Edge-triggered (never misses a press). Blocks player movement unless {block:false}.
+     * Autoplay: resolves next tick with opts.autoKey or the first key.
+     */
+    api.waitKey = guard(function (keys, opts) {
+      opts = opts || {};
+      keys = keys == null ? ['ok'] : Array.isArray(keys) ? keys : [keys];
+      var ACT = { up: 1, down: 1, left: 1, right: 1, ok: 1, menu: 1, back: 1, tab: 1, mute: 1, debug: 1 };
+      var p;
+      if (G.auto) p = U.nextTick().then(function () { return opts.autoKey || keys[0]; });
+      else p = new Promise(function (resolve) {
+        var since = performance.now();
+        function done() { var j = G.Input.listeners.indexOf(fn); if (j >= 0) G.Input.listeners.splice(j, 1); }
+        function fn(e) {
+          if (!live()) return done();
+          for (var i = 0; i < keys.length; i++) {
+            var k = keys[i];
+            if (ACT[k] ? G.Input.pressedSince(k, since) : (e.code === k || e.key === k)) {
+              done();
+              if (ACT[k]) setTimeout(function () { G.Input.consume(k); }, 0);
+              resolve(k); return;
+            }
+          }
+        }
+        G.Input.listeners.push(fn);
+      });
+      return opts.block === false ? p : block(p);
     });
     /** Replace an entity's interaction handler at runtime (null = not interactable). */
     api.onInteract = function (id, handler) { S.overrides[id] = handler; };

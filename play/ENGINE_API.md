@@ -318,7 +318,7 @@ never resolve (they are abandoned silently).
 | call | |
 |---|---|
 | `api.flags` | the live flags object (persistent, shared across chapters) |
-| `api.get(k, default)` / `api.set(k, v=true)` / `api.set({...})` | read/write (`set({n:'+1'})` adds) |
+| `api.get(k, default)` / `api.set(k, v=true)` / `api.set({...})` | read/write. A string `'+N'`/`'-N'` ADDS in both forms: `api.set('n','+1')` and `set({n:'+1'})` (base = current value, else flagDefault, else 0) |
 | `api.add(k, n=1)` → new value | counter |
 | `api.has(k)` / `api.check(cond)` | truthy / condition |
 | `api.rel('delphin', +1)` → value; `api.rel('delphin')` reads | relationship (`relDelphin`) |
@@ -345,6 +345,7 @@ never resolve (they are abandoned silently).
 | `await api.until(fn, {objective, target, targets:[..], autoplay})` | until `fn(flags, api)` is true (checked every frame) |
 | `api.objective('Find Waverly', {target:'waverly'})` | HUD objective + autoplay instruction. `targets:[...]` = visit each in order; `autoplay: async api => {...}` = custom. `api.objective(null)` clears |
 | `api.onInteract(id, handler)` | replace an entity's handler at runtime |
+| `const k = await api.waitKey(['ok','KeyF'], {block:true, autoKey})` | edge-triggered wait for a key (action names or KeyboardEvent codes/keys); never misses a press. Autoplay resolves at once with `autoKey` or the first key. In polling loops use `G.Input.pressedSince(action, t)` with `t = G.Input.now()` |
 
 ### Entities & camera
 | call | |
@@ -637,3 +638,7 @@ Changes after the API freeze. All are backwards compatible.
   - Added: `G.manifest.game.flagDefaults` (canon meter defaults). They fill undefined flags at every chapter start (New Game, Continue, Chapter Select, `?chapter=`, each next chapter) without overwriting. `api.add`, `{add}` and `set` `'+N'` on an undefined key now start from the default instead of 0. Also added `G.flagDefaults()` and `G.applyFlagDefaults(flags)`. The audience meter with no value falls back to `flagDefaults.m_audience` (then 50). `tools/new-chapter.js` preserves the key.
 - **2026-10-04 (d)**
   - Added: `patch: { <entityId>: {fields} }` in `G.shared.map(name, ext)`. It shallow-merges fields into the shared npc/object/zone/exit with that id in the chapter's copy (functions allowed; the shared original is untouched). An unknown id gives a warning, not an error.
+- **2026-10-04 (e)**
+  - Fixed: `api.remove(id)` followed by `api.addObject({id})` / `api.addNpc({id})` brought back both copies on re-entering the room. Adding an id now replaces any earlier runtime def (and the live entity) with that id, and `remove` also drops the id from the runtime-added list. A runtime-added id also shadows a map-defined entity with the same id (reported by ch11).
+  - Fixed: `api.set(key, '+N')` / `api.set(key, '-N')` (two-argument form) now adds, like the object form, instead of storing the string (reported by ch11).
+  - Added: `api.waitKey(keys, {block, autoKey})`, an edge-triggered key wait that is autoplay-safe; `G.Input.pressedSince(action, t)`, an edge-latched check that can't miss presses between `until()` polls; `G.Input.now()` and `G.Input.lastPress` (reported by ch08/ch11).
