@@ -330,7 +330,7 @@ never resolve (they are abandoned silently).
 | `await api.say('kessie', 'Text', {mood:'sad', name:'Voice', portrait:false})` | text may be an array of pages. Speaker = cast id, NPC id, or any string (name only, no portrait) |
 | `await api.narrate('Text')` | narration |
 | `await api.think('Text')` | inner monologue |
-| `const i = await api.choice(['A','B', {text:'C', if:'flag', set:{...}}], {timer:5, timeoutPick:0, prompt, showDisabled})` | returns the **index in your original array**. `set`/`add` on options are applied. The previous line stays visible as the prompt |
+| `const i = await api.choice(['A','B', {text:'C', if:'flag', set:{...}}], {timer:5, timeoutPick:0, prompt, showDisabled})` or `api.choice('Question?', ['A','B'], {...})` | returns the **index in your original array**. `set`/`add` on options are applied. Prompt: by default the previous line stays visible; `prompt:'text'` shows that text as narration; `prompt:{speaker:'trader', text, mood}` shows it as dialogue; `prompt:false` shows none |
 | `await api.run([...steps])` | run a data-script |
 
 ### Rooms, free roam and waiting for the player
@@ -366,7 +366,7 @@ never resolve (they are abandoned silently).
 | call | |
 |---|---|
 | `await api.wait(ms)` | |
-| `await api.fadeOut(ms=600, color)` / `await api.fadeIn(ms=600)` | |
+| `await api.fadeOut(ms=600, color)` / `await api.fadeIn(ms=600)` | the fade covers the world and HUD only. Dialogue, choices, slides, title cards and minigames draw ABOVE it, so `fadeOut` then `narrate`/`slides`/`minigame` shows on a black screen. `api.flash` stays on top of everything |
 | `api.flash(color, ms)` / `await api.shake(ms, mag)` | |
 | `await api.titleCard('Week 2', 'subtitle', ms, {kicker})` | |
 | `await api.slides([...], {style})` / `api.tv(...)` / `api.letter(...)` / `api.note(...)` / `api.screen(...)` | §7 |
@@ -526,6 +526,7 @@ For a scripted outcome, set `votes`/`tally` so the canon result happens regardle
   lives: 3, title, prompt, playerSpec }
 ```
 Result: `{success, caught, time}`. Shift = creep.
+Cameras may sit ON a solid wall tile (as shared rooms mount them, e.g. `house_red_hall` `hall_cam2` at [24,0]); vision rays and line of sight ignore the camera's own tile. Don't offset wall cameras by hand. For your own free-roam detection use `G.Map.lineOfSight(room, ax, ay, bx, by)` / `G.Map.rayLength(room, x, y, angle, range)` (pixels; origin tile ignored; `room` = `G.World.room`).
 
 ### 12.5 Custom minigames
 ```js
@@ -648,3 +649,8 @@ Changes after the API freeze. All are backwards compatible.
   - Fixed: `G.shared.map` applies `remove` BEFORE appending ext lists, so a chapter can replace a shared entity with its own entity of the same id. The order is now remove → append/override → patch (reported by ch16).
 - **2026-10-04 (g)**
   - Fixed: in the cipher minigame W/A/S/D (and E/M) were read as directions/ok/mute as well as typed letters, so words containing them could not be typed (e.g. GRANDMA IS TRADERS WEAK POINT). Added Input text mode (`G.Input.setTextMode`, `ctx.textMode(true)` in minigames, reset automatically when a minigame ends). The cipher enables it and navigates with arrow keys only.
+- **2026-10-04 (h)**
+  - Fixed: the screen fade was drawn above all overlays, so anything shown after `api.fadeOut` (narration, choices, slides, TV, letters, minigames) was invisible until `fadeIn`. The fade now covers only the world and HUD, and overlays draw above it; `flash` stays on top. This affected about 50 fade-then-overlay sites across ch01–ch16 (reported by ch12). Chapter-local workarounds (e.g. `fadeIn(0)` before a slide) still work and can be removed.
+  - Fixed: a string choice prompt (`{prompt:'Question?'}`) rendered an empty box; it now renders as narration. Added the question-first form `api.choice('Question?', options, opts)` and `prompt:{speaker, text, mood}` (reported by ch12).
+- **2026-10-04 (i)**
+  - Fixed: wall-mounted cameras were blind in the `stealth` minigame. The vision cone and line of sight stopped at the camera's own solid wall tile, so no cone was drawn and nothing was detected (affected every shared-room camera). Rays now ignore the origin tile. Added `G.Map.lineOfSight` and `G.Map.rayLength` for chapter-side detection. Existing workarounds that move a camera one tile down still work (no double offset): the camera then just sees from the floor tile in front of the wall.

@@ -155,11 +155,15 @@
     opts = opts || {};
     var forced = opts.autoPick != null ? opts.autoPick : null;
     if (G.auto) {
+      if (typeof opts.prompt === 'string') G.log('(prompt) ' + opts.prompt);
       var pick = forced != null ? forced : D.autoPick(options);
       G.log('[choice] -> ' + options[pick].text);
       return U.nextTick().then(function () { return pick; });
     }
     var prompt = opts.prompt === false ? null : (opts.prompt || D.last);
+    // a string prompt (api.choice(opts, {prompt:'Question?'}) or api.choice('Question?', opts)) renders as narration
+    if (typeof prompt === 'string') { G.log('(prompt) ' + prompt); prompt = { kind: 'narrate', info: { name: '', spec: null }, text: prompt }; }
+    else if (prompt && prompt.text != null && !prompt.info) prompt = { kind: prompt.kind || (prompt.speaker ? 'say' : 'narrate'), info: prompt.speaker ? D.speakerInfo(prompt.speaker, prompt) : { name: prompt.name || '', spec: null }, text: prompt.text, mood: prompt.mood };
     return new Promise(function (resolve) {
       var sel = 0;
       while (options[sel] && options[sel].disabled) sel++;

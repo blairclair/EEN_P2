@@ -400,7 +400,9 @@
      * Resolves to the index in the ORIGINAL array. Options failing `if` are hidden
      * (or shown greyed if {showDisabled:true}).
      */
-    api.choice = guard(function (options, opts) {
+    api.choice = guard(function (options, opts, opts3) {
+      // question-first form: api.choice('Question?', ['A','B'], {...})
+      if (typeof options === 'string' && Array.isArray(opts)) { var q = options; options = opts; opts = Object.assign({}, opts3 || {}); if (opts.prompt == null) opts.prompt = q; }
       opts = opts || {};
       var list = [];
       options.forEach(function (o, i) {

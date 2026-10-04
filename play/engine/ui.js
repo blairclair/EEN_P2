@@ -43,12 +43,13 @@
   UI.draw = function () {
     R.ui();
     if (G.World.active) drawHud();
+    // Screen fade covers the WORLD and HUD only. Overlays (dialogue, choices, slides, title cards,
+    // minigames, menus) draw ABOVE it, so 'fadeOut, then narrate/slides/minigame' shows on black.
+    drawFade();
     UI.stack.forEach(function (o) {
-      if (o.underFx) return;
       try { if (o.draw) o.draw(UI.t); } catch (e) { G.reportError(e, 'overlay draw'); UI.remove(o); }
     });
-    drawFx();
-    UI.stack.forEach(function (o) { if (o.underFx === false && o.drawTop) o.drawTop(UI.t); });
+    drawFlash(); // flashes stay on top of everything (stealth 'spotted', api.flash during minigames)
     drawToasts();
     if (G.dev) drawDebug();
   };
@@ -65,10 +66,8 @@
     }
     if (fx.flash > 0) fx.flash = Math.max(0, fx.flash - dt / fx.flashDur);
   }
-  function drawFx() {
-    if (fx.fade > 0.001) R.rect(0, 0, G.W, G.H, fx.fadeColor, fx.fade);
-    if (fx.flash > 0.001) R.rect(0, 0, G.W, G.H, fx.flashColor, fx.flash);
-  }
+  function drawFade() { if (fx.fade > 0.001) R.rect(0, 0, G.W, G.H, fx.fadeColor, fx.fade); }
+  function drawFlash() { if (fx.flash > 0.001) R.rect(0, 0, G.W, G.H, fx.flashColor, fx.flash); }
   /** Tween the fade overlay to alpha (0 = clear, 1 = covered). */
   UI.fadeTo = function (alpha, ms, color) {
     if (color) fx.fadeColor = color;

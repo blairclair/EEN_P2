@@ -504,11 +504,7 @@
         var pts = [[x - 4, y - 4], [x + 3, y - 4], [x - 4, y], [x + 3, y]];
         return pts.every(function (q) { return !solid(Math.floor(q[0] / T), Math.floor(q[1] / T)); });
       }
-      function los(ax, ay, bx, by) {
-        var d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 4);
-        for (var i = 1; i < n; i++) { var x = ax + (bx - ax) * i / n, y = ay + (by - ay) * i / n; var d2 = G.Map.tileDef(room.grid[Math.floor(y / T)] && room.grid[Math.floor(y / T)][Math.floor(x / T)] || 'void'); if (d2.solid) return false; }
-        return true;
-      }
+      function los(ax, ay, bx, by) { return G.Map.lineOfSight(room, ax, ay, bx, by); } // origin tile ignored: wall-mounted cameras work
       function sees(s) {
         var dx = pl.x - s.x, dy = (pl.y - 6) - s.y, d = Math.hypot(dx, dy);
         if (d > s.range) return false;
@@ -561,8 +557,7 @@
             g.fillStyle = col; g.beginPath(); g.moveTo(s.x - cx, s.y - cy);
             var steps = 14;
             for (var i = 0; i <= steps; i++) {
-              var a = s.ang - s.fov / 2 + s.fov * i / steps, r = s.range;
-              for (var k = 4; k <= s.range; k += 4) { var x = s.x + Math.cos(a) * k, y = s.y + Math.sin(a) * k; if (solid(Math.floor(x / T), Math.floor(y / T))) { r = k; break; } }
+              var a = s.ang - s.fov / 2 + s.fov * i / steps, r = G.Map.rayLength(room, s.x, s.y, a, s.range);
               g.lineTo(s.x + Math.cos(a) * r - cx, s.y + Math.sin(a) * r - cy);
             }
             g.closePath(); g.fill();

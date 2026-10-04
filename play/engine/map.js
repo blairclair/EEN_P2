@@ -408,6 +408,32 @@
     return !!d.solid;
   };
 
+  /**
+   * Line of sight in pixels between (ax,ay) and (bx,by) across a built room. Samples every 4px.
+   * The ORIGIN tile is ignored, so a camera mounted on a solid wall tile can see out of it.
+   */
+  M.lineOfSight = function (room, ax, ay, bx, by) {
+    var d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 4);
+    var ox = Math.floor(ax / T), oy = Math.floor(ay / T);
+    for (var i = 1; i < n; i++) {
+      var x = ax + (bx - ax) * i / n, y = ay + (by - ay) * i / n, tx = Math.floor(x / T), ty = Math.floor(y / T);
+      if (tx === ox && ty === oy) continue;
+      if (M.solidAt(room, tx, ty)) return false;
+    }
+    return true;
+  };
+  /** Distance (px, <= range) a ray from (ax,ay) at angle travels before hitting a solid tile; origin tile ignored. */
+  M.rayLength = function (room, ax, ay, ang, range, step) {
+    step = step || 4;
+    var ox = Math.floor(ax / T), oy = Math.floor(ay / T);
+    for (var k = step; k <= range; k += step) {
+      var tx = Math.floor((ax + Math.cos(ang) * k) / T), ty = Math.floor((ay + Math.sin(ang) * k) / T);
+      if (tx === ox && ty === oy) continue;
+      if (M.solidAt(room, tx, ty)) return k;
+    }
+    return range;
+  };
+
   /** Draw the visible tiles of a room into the low-res ctx. cam = top-left pixel. */
   M.draw = function (g, room, camX, camY, t) {
     var x0 = Math.max(0, Math.floor(camX / T)), y0 = Math.max(0, Math.floor(camY / T));
