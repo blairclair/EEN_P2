@@ -145,7 +145,7 @@
       luna: { outfit: '#2a2a35', outfit2: '#2a2a35', style: 'jumpsuit', accessory: 'number', accent: '#e8323c' }
     },
     // Defaults for cross-chapter flags when this chapter is run in isolation (?chapter=ch00).
-    testDefaults: { approval: 50 },
+    testDefaults: { m_audience: 50 },
 
     start: async function (api) {
       /* --- Opening: room, narration, inner monologue --- */
@@ -205,7 +205,7 @@
 
       /* --- Show HUD: ON AIR, approval meter, lower third, TV broadcast --- */
       api.onAir(true);
-      api.approval(api.get('approval', 50));
+      api.approval(true);                                    // show the audience meter (flags.m_audience)
       api.lowerThird('LUNA', 'Contestant #9 • Rehearsal');
       await api.tv([
         { speaker: 'trader', headline: 'Rehearsal Night', text: 'Welcome back, citizens! Tonight our contestants practise for the real thing.' },

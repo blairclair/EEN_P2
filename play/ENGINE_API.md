@@ -64,7 +64,7 @@ Screenshots go to `test/artifacts/`. If you are running in isolation, `?chapter=
     tiles: { neon: { color: '#102', color2: '#f0f', pattern: 'grid' } },  // custom tile types, §3.3
     props: { vase: function (g, x, y, t, obj) { g.fillStyle = '#88f'; g.fillRect(x+5, y+6, 6, 8); } },
     minigames: { rhythm: { start: function (ctx) {...}, autoSolve: function (p) { return {success:true}; } } },
-    testDefaults: { votedFor: 'carol', approval: 40 },  // flags assumed from earlier chapters when run alone
+    testDefaults: { votedFor: 'carol', m_audience: 40 },  // flags assumed from earlier chapters when run alone
     noTitleCard: false,            // true = skip the "Chapter N / Title" card
     kicker: 'WEEK 2',              // optional small red line above the title card
     start: async function (api) { /* your chapter; see §6 */ api.completeChapter(); }
@@ -399,18 +399,22 @@ never resolve (they are abandoned silently).
 ## 8. HUD / show elements
 
 - `api.onAir(true)` shows a blinking ● ON AIR at top right.
-- `api.approval(55)` shows the audience-approval meter (0-100) at top left and stores it in flag `approval` (cross-chapter).
-  `api.approvalAdd(-5)` animates a change with a floating delta. `api.approval(false)` hides it. `api.approval()` reads it.
+- **Audience meter = flag `m_audience`** (0-100, the canon flag-registry name; single source of truth).
+  - `api.approval(55)` sets and shows it. `api.approval('+5')` / `api.approval('-3')` add (strings), and `api.approvalAdd(-5)` adds with a floating delta.
+  - `api.approval(true)` shows it at its current value (default 50 if never set), `api.approval(false)` hides it, `api.approval()` reads it. `api.audience(...)` is an alias.
+  - Data-script: `{approval: 55}`, `{approvalAdd: -5}`, `{audience: '+10'}`.
+  - Writing the flag directly (`api.set('m_audience', 70)`, `{set:{m_audience:'+5'}}`) also updates the HUD within a frame.
+  - **`approval` is a DEPRECATED alias.** It is kept equal to `m_audience` (writes to either propagate) for old code. Use `m_audience` in new code and in `testDefaults`.
 - `api.lowerThird('LUNA', 'Contestant #9', 4000)` slides in a TV caption. Omit `ms` to keep it until `api.lowerThird(null)`.
 - `api.objective(text)` shows the objective line.
-- The HUD resets (all hidden) at every chapter start; the `approval` value persists.
+- The HUD resets (all hidden) at every chapter start; the `m_audience` value persists across chapters.
 
 ---
 
 ## 9. Flags conventions
 
 - **State persists across chapters** in `api.flags` (saved at chapter start and completion).
-- **Cross-chapter flags**: camelCase, no prefix, e.g. `votedFor`, `drankTea`, `approval`, `relDelphin`.
+- **Cross-chapter flags**: camelCase, no prefix, e.g. `votedFor`, `drankTea`, `relDelphin`, plus names fixed by the canon flag registry (e.g. `m_audience` for the audience meter). The canon registry wins over this doc.
   Document every cross-chapter flag you **write** or **read** in your chapter's header comment, and follow the
   canon flag list if the orchestrator provides one (`canon/`). Always read with a default:
   `api.get('votedFor', 'carol')`, and declare test defaults in `testDefaults` so `?chapter=chNN` works alone.
@@ -614,3 +618,8 @@ Changes after the API freeze. All are backwards compatible.
   - Changed (visual only): the lower third now sits at the bottom of the screen and lifts above the dialogue box while dialogue or a choice is open.
   - Fixed: `tools/new-chapter.js` preserves the manifest `shared` list when rewriting the manifest.
   - Fixed: an isolated autoplay test (`?chapter=X&auto=1`) stops after chapter X instead of running into the next chapter.
+
+- **2026-10-04 (b)**
+  - Changed: the HUD audience meter is bound to flag **`m_audience`** (single source of truth). `api.approval(v)` and `api.approvalAdd(d)` read and write it, and `api.approval('+5')` string deltas, `api.approval(true)` and the alias `api.audience` were added. The `{audience: v}` data-script step was added. Direct flag writes are synced to the HUD every frame. `approval` stays as a deprecated alias kept equal to `m_audience`, and old saves with only `approval` are migrated at chapter start.
+  - Fixed: interacting with an NPC on the adjacent tile failed unless the player stood near the far edge of its own tile. NPCs on the faced tile are now always reachable.
+  - Fixed: `World.locate` could drop a map from the autoplay target search after a cross-chapter `goRoom('chNN:room')`.

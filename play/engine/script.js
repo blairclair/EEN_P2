@@ -84,6 +84,30 @@
     Object.keys(obj).forEach(function (k) { f[k] = (+f[k] || 0) + obj[k]; });
   };
 
+  /* ---------------- audience meter (flags.m_audience) ---------------- */
+  S.meterSynced = null;
+  /** Current meter value: m_audience, else deprecated `approval`, else 50. */
+  S.meterValue = function () {
+    var f = G.Game.state.flags;
+    if (f.m_audience != null) return f.m_audience;
+    if (f.approval != null) return f.approval;
+    return 50;
+  };
+  /** Called every frame: keeps HUD, m_audience and the deprecated `approval` alias consistent
+   *  even when chapters write the flags directly (api.set('m_audience', 70)). */
+  S.syncMeter = function () {
+    if (!G.Game.state) return;
+    var f = G.Game.state.flags, last = S.meterSynced;
+    var m = f.m_audience, a = f.approval;
+    var nv;
+    if (m != null && m !== last) nv = m;                 // m_audience changed directly
+    else if (a != null && a !== last && a !== m) nv = a; // deprecated alias changed directly
+    else return;
+    nv = U.clamp(Math.round(+nv || 0), 0, 100);
+    f.m_audience = nv; f.approval = nv; S.meterSynced = nv;
+    G.UI.setApproval(nv, { show: G.UI.hud.approval.show });
+  };
+
   /* ---------------- data-script runner ---------------- */
   function normStep(st) {
     if (typeof st === 'string') return { narrate: st };
@@ -162,6 +186,7 @@
     else if (st.onAir !== undefined) api.onAir(st.onAir);
     else if (st.approval !== undefined) api.approval(st.approval);
     else if (st.approvalAdd !== undefined) api.approvalAdd(st.approvalAdd);
+    else if (st.audience !== undefined) api.approval(st.audience);
     else if (st.lowerThird !== undefined) api.lowerThird(st.lowerThird && st.lowerThird.title || st.lowerThird, st.lowerThird && st.lowerThird.sub, st.lowerThird && st.lowerThird.ms);
     else if (st.objective !== undefined) api.objective(st.objective, st);
     else if (st.show) api.show(st.show);
@@ -404,17 +429,27 @@
 
     /* ----- HUD ----- */
     api.onAir = function (on) { if (live()) G.UI.hud.onAir = on !== false; };
-    /** api.approval(55) show+set; api.approval(false) hide; api.approval() -> value. Stored in flags.approval. */
+    /**
+     * Audience meter. SINGLE SOURCE OF TRUTH = flags.m_audience (0..100, canon flag registry name).
+     * api.approval(55) set+show; api.approval('+5') / api.approval('-3') add; api.approval(true) show;
+     * api.approval(false) hide; api.approval() -> value. `approval` is a DEPRECATED alias kept in sync.
+     */
     api.approval = function (v, opts) {
       if (!live()) return 0;
-      if (v === undefined) return G.Game.state.flags.approval != null ? G.Game.state.flags.approval : G.UI.hud.approval.value;
-      if (v === false) { G.UI.hud.approval.show = false; return; }
-      if (v === true) v = api.approval();
-      G.Game.state.flags.approval = U.clamp(Math.round(v), 0, 100);
-      G.UI.setApproval(v, opts);
-      return G.Game.state.flags.approval;
+      var f = G.Game.state.flags;
+      var cur = S.meterValue();
+      if (v === undefined) return cur;
+      if (v === false) { G.UI.hud.approval.show = false; return cur; }
+      if (v === true) v = cur;
+      if (typeof v === 'string' && /^[+-]\d+(\.\d+)?$/.test(v)) v = cur + parseFloat(v);
+      var nv = U.clamp(Math.round(+v || 0), 0, 100);
+      f.m_audience = nv; f.approval = nv;
+      S.meterSynced = nv;
+      G.UI.setApproval(nv, opts);
+      return nv;
     };
     api.approvalAdd = function (d, opts) { return api.approval(api.approval() + d, opts); };
+    api.audience = api.approval; // alias named after the flag
     api.lowerThird = function (title, sub, ms, tag) { if (live()) G.UI.lowerThird(title, sub, ms, tag); };
     /**
      * Show an objective in the HUD AND tell autoplay what to do.

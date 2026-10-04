@@ -119,7 +119,7 @@
     var ns = G.ns();
     var maps = G.registry.maps;
     var keys = Object.keys(maps).filter(function (k) { return !ns || maps[k].ns === ns; });
-    if (W.room) { keys.splice(keys.indexOf(W.room.def.id), 1); keys.unshift(W.room.def.id); }
+    if (W.room) { var ci = keys.indexOf(W.room.def.id); if (ci >= 0) { keys.splice(ci, 1); keys.unshift(W.room.def.id); } }
     for (var i = 0; i < keys.length; i++) {
       var d = maps[keys[i]];
       var st = W.roomState[d.id];
@@ -378,10 +378,15 @@
     if (!W.active) return null;
     var fp = W.facingPoint();
     var best = null, bd = 1e9;
+    var pt0 = W.playerTile(), dv = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[W.player.dir];
+    var ftile = { x: pt0.x + dv[0], y: pt0.y + dv[1] };
     W.npcs.forEach(function (n) {
-      if (!n.visible) return;
+      if (!n.visible || !W.isInteractable(n)) return;
       var dx = n.x - fp.x, dy = (n.y - 4) - fp.y, d = dx * dx + dy * dy;
-      if (Math.abs(dx) < 10 && Math.abs(dy) < 12 && d < bd && W.isInteractable(n)) { best = n; bd = d; }
+      var nt = W.pxToTile(n.x, n.y);
+      // pixel reach near the facing point, OR the NPC stands on the tile the player faces
+      var near = (Math.abs(dx) < 10 && Math.abs(dy) < 12) || (nt.x === ftile.x && nt.y === ftile.y && Math.abs(n.x - W.player.x) < 26 && Math.abs(n.y - W.player.y) < 26);
+      if (near && d < bd) { best = n; bd = d; }
     });
     if (best) return best;
     var ft = { x: Math.floor(fp.x / T), y: Math.floor(fp.y / T) };
