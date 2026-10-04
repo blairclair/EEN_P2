@@ -1738,7 +1738,8 @@
     await api.narrate('Samantha isn\'t alone in the centre of the room anymore. Beside her stands a throne crusted with jewels, fit for a king or a wannabe dictator.');
     api.objective('Look at Samantha');
     await api.waitForTalk('samantha');
-    await api.until(function (f) { return (f.ch12_bops || 0) >= 2; }, { objective: 'Samantha is rocking. Bop her again?', target: 'samantha' });
+    api.objective('Samantha is rocking. Bop her again?');
+    await api.waitForTalk('samantha');   // (constraint: waitForTalk, not until(): until resolved mid-handler and lockPlayer leaked)
     api.objective(null);
     api.lockPlayer();
     api.show('judge');
