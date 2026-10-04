@@ -28,3 +28,15 @@ maps: {
 ```
 See ENGINE_API.md §15. Name shared maps with a location prefix (`show_kitchen`, `prison_cell`,
 `apt_luna_room`) and give their built-in entities stable ids so chapters can `remove` them.
+
+### Spawns, marks and cross-owner exits (convention for all shared owners)
+* Chapters key their maps by the shared id: `maps: { house_gym_courtroom: G.shared.map('house_gym_courtroom', {...}) }`.
+* Each shared map def carries `spawns: { from_<room>: [x, y] }` (arrival tiles) and `marks: { name: [x, y] }`
+  (staging points such as `defendant_left` or `stage_center`). Both are mirrored at
+  `G.shared.data.spawns[mapId]` and `G.shared.data.marks[mapId]`:
+  `api.goRoom('house_gym_courtroom', { at: G.shared.data.spawns.house_gym_courtroom.from_red_hall })`,
+  `{ id: 'carol', at: G.shared.data.marks.house_gym_courtroom.defendant_left }`.
+* An exit into another owner's room (`to_red_hall` → `house_red_hall`) resolves its `toAt` when it is used, from
+  `G.shared.data.spawns[target]['from_' + thisRoom]`, falling back to the target's default spawn. Its `locked`
+  is a function that returns true when the chapter has not registered the target map, so a lone room never
+  throws "Unknown map". Redresses of one room (house_gym_*) all look up `from_gym`.
