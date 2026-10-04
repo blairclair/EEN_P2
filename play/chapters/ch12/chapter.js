@@ -1200,23 +1200,7 @@
 
     start: async function (api) {
       registerSounds();
-      // [!slides/titleCards shown after api.fadeOut were invisible <- UI.draw paints the fade ABOVE every overlay]
-      // (fix: lift the fade while an opaque full-screen card is up, restore it after)
-      ['slides', 'titleCard'].forEach(function (fn) {
-        var orig = api[fn];
-        api[fn] = async function () {
-          var fx = G.UI.fx, was = fx.fade;
-          fx.fade = 0;
-          try { return await orig.apply(api, arguments); } finally { if (was > 0 && fx.fade === 0 && !fx.tween) fx.fade = was; }
-        };
-      });
-      // [!choice({prompt:'string'}) drew an empty dialogue box <- Dialogue.choose reads prompt.text/kind]
-      // (fix: turn string prompts into a narration line object)
-      var origChoice = api.choice;
-      api.choice = function (opts, o) {
-        if (o && typeof o.prompt === 'string') { o = Object.assign({}, o, { prompt: { kind: 'think', text: o.prompt } }); }
-        return origChoice.call(api, opts, o);
-      };
+      // (fade/overlay draw order and string choice prompts are handled by the engine since f332a2f)
       await partWake(api);
       await partInfirmary(api);
       await partFlashback(api);
@@ -1506,7 +1490,7 @@
     await api.waitForInteract('ch12_car');
     api.objective(null);
     await api.say('norman', 'Remember to keep your arms and legs inside the vehicle and enjoy your ride. Screaming is encouraged, as is waving your arms.', { mood: 'happy' });
-    // (constraint: no fadeOut before a minigame: the fade layer draws above the minigame overlay and blacks it out)
+    // straight into the ride (no fade; see LEARNINGS ch12 fade/overlay note)
     var r = await api.minigame('coaster', {});
     api.set('ch12_coasterLeans', r.hits || 0);
     await api.narrate('I\'ll never forget it. The way joy turned to terror and then tragedy in the span of ten seconds.');

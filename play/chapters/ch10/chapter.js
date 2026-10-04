@@ -192,8 +192,9 @@
       to_bedroom_hall: { locked: '!ch10_summoned || ch10_woke', lockedText: [{ think: 'Locked. It\'s past eleven. The doors lock at eleven.' }] }
     },
     objects: [
-      // Waverly's taped photo: the shared extra sits behind the nightstand, so it goes on the free wall by the door.
-      { id: 'waverly_photo', at: [3, 0], prop: (sdata().upstairs && sdata().upstairs.extras && sdata().upstairs.extras.waverlyPhoto) ? sdata().upstairs.extras.waverlyPhoto.prop : 'photo', solid: false, layer: 1,
+      // Waverly's taped photo: the shared extra's spot [6,0] is behind the nightstand (unreachable), and the
+      // north wall is full (tablet, Eye, window), so it goes on the west wall, facing the desk side.
+      { id: 'waverly_photo', at: [0, 3], prop: (sdata().upstairs && sdata().upstairs.extras && sdata().upstairs.extras.waverlyPhoto) ? sdata().upstairs.extras.waverlyPhoto.prop : 'photo', solid: false, layer: 1,
         examine: async function (api) {
           await api.think('Waverly\'s photo, taped back together. Her note is still under the mattress: "I can use that to help you escape."');
           if (!api.get('f_code_reply_sent', true)) await api.think('I never answered her properly. She\'ll think I didn\'t care. Better that than her thinking she can play Trader.');
@@ -411,7 +412,7 @@
     remove: ['to_columbus_dorm', 'to_columbus_closet', 'to_columbus_office', 'to_columbus_yard'],
     patch: { lounge_tv: { examine: null } },
     npcs: [
-      { id: 'ch10_kid1', spec: G.Sprites.randomSpec(31, { outfit: '#8a8a8a', height: 'child' }), at: [7, 2], facing: 'up', talk: [{ say: 'Kid', text: 'Shh! They\'re gonna say who won!', portrait: false }] },
+      { id: 'ch10_kid1', spec: G.Sprites.randomSpec(31, { outfit: '#8a8a8a', height: 'child' }), at: [5, 2], facing: 'up', talk: [{ say: 'Kid', text: 'Shh! They\'re gonna say who won!', portrait: false }] },
       { id: 'ch10_kid2', spec: G.Sprites.randomSpec(32, { outfit: '#8a8a8a', height: 'child' }), at: [11, 2], facing: 'up', talk: [{ say: 'Kid', text: 'True believer! True believer\'s mom is on TV!', portrait: false }] },
       { id: 'ch10_kid3', spec: G.Sprites.randomSpec(33, { outfit: '#8a8a8a', height: 'child' }), at: [12, 4], facing: 'up' }
     ]

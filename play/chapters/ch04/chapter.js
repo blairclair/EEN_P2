@@ -100,7 +100,7 @@
 
   var lunaRoomNight = useShared(SHARED.lunaRoom, {
     patch: { to_bedroom_hall: { locked: true, lockedText: [{ think: 'Locked. 23:00 to 06:00. The green button is for emergencies.' }] } },
-    ambient: 'drone', dark: 0.62, playerLight: 30
+    ambient: 'drone', dark: 0.62, playerLight: 30, tint: '#0a0a24', tintAlpha: 0.35
   }, box('Luna\'s Room', 10, 10));
 
   // The main stair (west end) is where Delphin waits; replace its locked exit with our trigger zone.
@@ -316,11 +316,11 @@
           ctx.header('THE CLEANSING', 'drop ' + Math.min(di + 1, 4) + ' / 4');
           var cx = ctx.W / 2, cy = 112;
           // the gloved grip (black, ridged) holding an open palm
-          R.rect(cx - 70, cy - 16, 52, 40, '#1a1a1e'); for (var r = 0; r < 5; r++) R.rect(cx - 66 + r * 10, cy - 16, 3, 40, '#2c2c34');
+          var gx0 = cx - 60 + x * 50; R.rect(gx0, cy - 16, 52, 40, '#1a1a1e'); for (var r = 0; r < 5; r++) R.rect(gx0 + 4 + r * 10, cy - 16, 3, 40, '#2c2c34');   // the grip moves with the wrist
           R.rect(cx - 18 + x * 50, cy - 10, 64, 28, '#f2cdb0'); R.rect(cx + 46 + x * 50, cy - 8, 16, 6, '#f2cdb0'); R.rect(cx + 46 + x * 50, cy + 2, 18, 5, '#f2cdb0'); R.rect(cx + 46 + x * 50, cy + 10, 15, 5, '#f2cdb0');
           for (var m = 0; m < grip; m++) R.rect(cx - 14 + m * 6 + x * 50, cy + 14, 3, 2, '#c8323c');
           falling.forEach(function (k) { var tt = ctx.t - (drops[k] - 0.6); if (tt >= 0 && tt < 0.6) R.rect(cx + 14 + x * 50, cy - 70 + tt * 100, 3, 5, '#bfe8ff'); });
-          R.rect(cx + 6, cy - 80, 16, 14, '#d8d8e0'); R.text('?', cx + 14, cy - 78, { size: 9, align: 'center', color: '#555' });
+          R.rect(cx + 11, cy - 88, 6, 4, '#555'); R.rect(cx + 8, cy - 84, 12, 14, '#cfe6f2', 0.85);   // the little bottle
           if (sting > 0) R.text('STING', cx + 14, cy - 34, { size: 10, align: 'center', color: '#ff6b6b', alpha: sting * 2 });
           // tremor gauge
           var gx = 92, gw = 200, gy = 168;
@@ -356,20 +356,21 @@
             if (k >= 1) { spinning = false; stopped = true; ctx.sound(p.dark ? 'sting' : 'reveal'); }
           } else if (stopped && ctx.t - t0 > dur + 0.5 && ctx.input.pressed('ok')) resolve({ success: true, result: p.items[p.land] });
         }, function () {
-          var c = R.ctx, cx = ctx.W / 2, cy = 118, rad = 70, seg = Math.PI * 2 / n;
+          var c = R.ctx, cx = ctx.W / 2, cy = 110, rad = 62, seg = Math.PI * 2 / n;
           R.rect(0, 0, ctx.W, ctx.H, p.dark ? '#140608' : '#0e0c18');
           ctx.header(p.title, p.sub || '');
           for (var i = 0; i < n; i++) {
             c.beginPath(); c.moveTo(cx, cy); c.arc(cx, cy, rad, ang + i * seg, ang + (i + 1) * seg); c.closePath();
             c.fillStyle = p.dark ? (i % 2 ? '#5a1a22' : '#3a0e14') : 'hsl(' + Math.round(i * 360 / n) + ',70%,' + (i % 2 ? 52 : 44) + '%)'; c.fill();
             c.strokeStyle = p.dark ? '#1a0408' : '#fff'; c.lineWidth = 0.8; c.stroke();
-            c.save(); c.translate(cx, cy); c.rotate(ang + (i + 0.5) * seg);
-            R.text(p.items[i], rad - 6, -4, { size: 6.5, align: 'right', color: p.dark ? '#e8b0b0' : '#fff', ctx: c });
+            var mid = ang + (i + 0.5) * seg, flip = Math.cos(mid) < 0;   // keep left-half labels upright
+            c.save(); c.translate(cx, cy); c.rotate(flip ? mid + Math.PI : mid);
+            R.text(p.items[i], flip ? -(rad - 6) : rad - 6, -4, { size: 6, align: flip ? 'left' : 'right', color: p.dark ? '#e8b0b0' : '#fff', ctx: c });
             c.restore();
           }
           c.beginPath(); c.arc(cx, cy, 9, 0, 7); c.fillStyle = p.dark ? '#2a0a0e' : '#f2f2f6'; c.fill();
           c.beginPath(); c.moveTo(cx - 6, cy - rad - 8); c.lineTo(cx + 6, cy - rad - 8); c.lineTo(cx, cy - rad + 4); c.closePath(); c.fillStyle = '#e8c15a'; c.fill();
-          if (stopped) R.text(p.items[p.land], cx, 196 - 12, { size: 11, align: 'center', color: p.dark ? '#ff6b6b' : '#e8c15a' });
+          if (stopped) R.text(p.items[p.land], cx, 178, { size: 10, align: 'center', color: p.dark ? '#ff6b6b' : '#e8c15a' });
           ctx.footer(stopped ? 'SPACE to continue' : spinning ? '...' : (p.auto ? '' : 'SPACE to spin'));
         });
       });
@@ -604,7 +605,7 @@
         } else if (c2 === 1) { SIM.event = 'boy'; A.set('ch04_simEvent', 'boy'); }
         return;
       }
-      await A.say('v_gunman', 'I count ' + n + '. Three, I said. The child will make up the difference, unless you return with more.');
+      await A.say('v_gunman', 'I count ' + ['none', 'one', 'two'][n] + '. Three, I said. The child will make up the difference, unless you return with more.');
       var c3 = await A.choice(['(Go back.)', 'Then take the child.'], { autoPick: 0 });
       if (c3 === 1) { SIM.event = 'boy'; A.set('ch04_simEvent', 'boy'); }
     }
