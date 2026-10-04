@@ -213,7 +213,9 @@
     return {
       name: 'Room No. 3 (locked)',
       ambient: 'hum', dark: 0.25, playerLight: 50,
-      remove: ['booklet'],
+      // the plate replaces the booklet on the desk; the book replaces the nightstand fixture on its tile
+      // [!book unreadable by keypress: facingEntity returns the FIRST object on a tile, and the shared nightstand came first] (fix: remove nightstand)
+      remove: ['booklet', 'nightstand'],
       objects: [book, { id: 'ch14_plate', at: P.plate, solid: false, layer: 1, draw: plateDraw, examine: [{ think: 'One meal a day.' }] }],
       patch: {
         window: { examine: [{ think: 'The garden. Pink almond blossoms in January. Somewhere past the fence is a road, and somewhere past the road is Waverly.' }] },

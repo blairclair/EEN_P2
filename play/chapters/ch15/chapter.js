@@ -190,7 +190,7 @@
   };
   CM.xchair = [CM.cage[0] + 2, CM.cage[1]];
   CM.doctor = [CM.cage[0] + 3, CM.cage[1]];
-  CM.tray = [CM.cage[0] + 3, CM.cage[1] - 1];
+  CM.tray = [CM.cage[0] + 4, CM.cage[1]];
   CM.tbC = [CM.cage[0], CM.cage[1] - 2];
   CM.trader = [CM.isaiah[0] - 1, CM.isaiah[1] + 5];
   CM.ginerva = [CM.isaiah[0] - 2, CM.isaiah[1] + 1];
