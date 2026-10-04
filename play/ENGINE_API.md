@@ -318,7 +318,7 @@ never resolve (they are abandoned silently).
 | call | |
 |---|---|
 | `api.flags` | the live flags object (persistent, shared across chapters) |
-| `api.get(k, default)` / `api.set(k, v=true)` / `api.set({...})` | read/write. A string `'+N'`/`'-N'` ADDS in both forms: `api.set('n','+1')` and `set({n:'+1'})` (base = current value, else flagDefault, else 0) |
+| `api.get(k, default)` / `api.set(k, v=true)` / `api.set({...})` | read/write. `api.set(k)` (one argument) sets `true`; `api.set(k, undefined)` or `api.set(k, null)` DELETES the key. A string `'+N'`/`'-N'` ADDS in both forms: `api.set('n','+1')` and `set({n:'+1'})` (base = current value, else flagDefault, else 0) |
 | `api.add(k, n=1)` → new value | counter |
 | `api.has(k)` / `api.check(cond)` | truthy / condition |
 | `api.rel('delphin', +1)` → value; `api.rel('delphin')` reads | relationship (`relDelphin`) |
@@ -492,7 +492,7 @@ await api.minigame('cipher', {
 { message: 'HI', key: { H: '★', I: '◆' } }          // explicit letter→token map
 { ciphertext: '15-22/8', key: {...} }              // ciphertext decoded through your key
 ```
-Controls: ←→ select a symbol, ↑↓ or type a letter (typing jumps to the next blank), Backspace clears.
+Controls: **arrow keys** ←→ select a symbol, type any letter (A–Z, including W/A/S/D/E/M) or use ↑↓ to cycle; typing jumps to the next blank, Backspace clears. The cipher runs in Input *text mode* (see §12.5).
 Result: `{success, solved, gaveUp, attempts, time, message}`.
 
 ### 12.2 `qte`: physical challenges
@@ -553,6 +553,7 @@ G.registerChapter({ id: 'ch05', minigames: {
 R (text, rect, panel, img, wrap, measure, static, scanlines, vignette), PAL, px (low-res canvas ctx) + blitPx(),
 sprite(spec, dir, frame), portrait(spec, mood), sound(name), header(title, sub), footer(text)`.
 Actions: `up down left right ok menu back tab mute`.
+**Typing letters?** Call `ctx.textMode(true)` at the start of `start(ctx)`. While it is on, W/A/S/D/E/M are plain text in `ctx.input.typed` and do NOT trigger `up/left/down/right/ok/mute`; arrows, Enter, Space, Esc, Backspace and Tab still map to actions. The engine turns it off automatically when the minigame resolves. (`G.Input.setTextMode(on)` / `G.Input.textMode` outside minigames; switch it back off yourself.)
 `R.text(str, x, y, {size, color, align, font:'mono'|'title'|'serif'|'hand'|'sans', style:'bold'|'italic'|'', alpha, shadow})`.
 Draw in virtual 384×216 coordinates. Text is rendered crisply at native resolution.
 
@@ -610,7 +611,7 @@ G.registerChapter({ id: 'ch05',
     })
   }, ... });
 ```
-`patch` runs after `remove` and the appends. The fields replace the shared entity's fields of the same name (shallow merge; functions allowed). An unknown id logs a warning (`G.testState.warnings` and the test log) and is skipped.
+**Order:** 1) `remove` drops shared entities by id, 2) ext lists are appended and other fields override, 3) `patch` merges by id. So `remove:['kettle']` plus your own `{id:'kettle'}` in `objects` REPLACES the shared one. The fields replace the shared entity's fields of the same name (shallow merge; functions allowed). An unknown id logs a warning (`G.testState.warnings` and the test log) and is skipped.
 The copy is then registered as your local map (`'ch05:kitchen'`), so `api.goRoom('kitchen')`, exits, autoplay and
 `api.remove` all work as usual. `G.shared.has(name)` / `G.shared.list()` let you check what exists.
 Shared entity ids are visible to autoplay targets, so avoid reusing them for your own entities.
@@ -642,3 +643,8 @@ Changes after the API freeze. All are backwards compatible.
   - Fixed: `api.remove(id)` followed by `api.addObject({id})` / `api.addNpc({id})` brought back both copies on re-entering the room. Adding an id now replaces any earlier runtime def (and the live entity) with that id, and `remove` also drops the id from the runtime-added list. A runtime-added id also shadows a map-defined entity with the same id (reported by ch11).
   - Fixed: `api.set(key, '+N')` / `api.set(key, '-N')` (two-argument form) now adds, like the object form, instead of storing the string (reported by ch11).
   - Added: `api.waitKey(keys, {block, autoKey})`, an edge-triggered key wait that is autoplay-safe; `G.Input.pressedSince(action, t)`, an edge-latched check that can't miss presses between `until()` polls; `G.Input.now()` and `G.Input.lastPress` (reported by ch08/ch11).
+- **2026-10-04 (f)**
+  - Fixed: `api.set(k, undefined)` / `api.set(k, null)` now delete the key instead of storing `true`. `api.set(k)` with one argument still sets `true` (reported by ch16).
+  - Fixed: `G.shared.map` applies `remove` BEFORE appending ext lists, so a chapter can replace a shared entity with its own entity of the same id. The order is now remove → append/override → patch (reported by ch16).
+- **2026-10-04 (g)**
+  - Fixed: in the cipher minigame W/A/S/D (and E/M) were read as directions/ok/mute as well as typed letters, so words containing them could not be typed (e.g. GRANDMA IS TRADERS WEAK POINT). Added Input text mode (`G.Input.setTextMode`, `ctx.textMode(true)` in minigames, reset automatically when a minigame ends). The cipher enables it and navigates with arrow keys only.

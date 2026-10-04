@@ -250,6 +250,8 @@
       if (!base) { G.reportError(new Error('G.shared.map: no shared map "' + name + '" (check shared/ files and manifest.shared)'), 'shared'); base = { tiles: ['###', '#@#', '###'] }; }
       var m = cloneDef(base);
       ext = ext || {};
+      // order: 1) remove shared entities by id, 2) append/override ext fields, 3) patch by id
+      if (ext.remove) ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { if (m[k]) m[k] = m[k].filter(function (e) { return ext.remove.indexOf(e.id) < 0; }); });
       Object.keys(ext).forEach(function (k) {
         var v = cloneDef(ext[k]);
         if (k === 'remove' || k === 'patch') return;
@@ -257,7 +259,6 @@
         else if (k === 'legend') m.legend = Object.assign({}, m.legend || {}, v);
         else m[k] = v;
       });
-      if (ext.remove) ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { if (m[k]) m[k] = m[k].filter(function (e) { return ext.remove.indexOf(e.id) < 0; }); });
       if (ext.patch) Object.keys(ext.patch).forEach(function (id) {
         var hit = null;
         ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { (m[k] || []).forEach(function (e) { if (!hit && e.id === id) hit = e; }); });

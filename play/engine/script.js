@@ -378,7 +378,7 @@
 
     /* ----- flags ----- */
     api.get = function (k, def) { var v = G.Game.state.flags[k]; return v === undefined ? def : v; };
-    api.set = function (k, v) { if (typeof k === 'object') S.applySet(k); else if (typeof v === 'string' && /^[+-]\d+(\.\d+)?$/.test(v)) { var o = {}; o[k] = v; S.applySet(o); } else G.Game.state.flags[k] = v === undefined ? true : v; };
+    api.set = function (k, v) { if (typeof k !== 'object' && arguments.length >= 2 && v == null) { delete G.Game.state.flags[k]; return; } if (typeof k === 'object') S.applySet(k); else if (typeof v === 'string' && /^[+-]\d+(\.\d+)?$/.test(v)) { var o = {}; o[k] = v; S.applySet(o); } else G.Game.state.flags[k] = v === undefined ? true : v; };
     api.add = function (k, n) { var f = G.Game.state.flags; f[k] = S.numBase(k) + (n == null ? 1 : n); return f[k]; };
     api.has = function (k) { return !!G.Game.state.flags[k]; };
     api.check = S.check;
