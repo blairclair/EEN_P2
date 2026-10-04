@@ -595,7 +595,7 @@
     var g = grid(15, 10, ' ');
     box(g, 0, 0, 10, 10, '#', '.');
     box(g, 9, 0, 6, 7, 'Q', ':');
-    put(g, 9, 3, 'e');                       // bathroom door
+    put(g, 9, 5, 'e');                       // bathroom door (row 5: rows 1-3 east of the room are the bed)
     put(g, 4, 0, 'W'); put(g, 5, 0, 'W');   // sealed window, north wall centre
     put(g, 7, 1, 'y'); put(g, 8, 1, 'y'); put(g, 7, 2, 'b'); put(g, 8, 2, 'b'); put(g, 7, 3, 'b'); put(g, 8, 3, 'b'); // queen bed NE
     put(g, 6, 1, 'n');                      // nightstand
@@ -612,7 +612,7 @@
         'y': 'up_bed_head', 'b': 'up_bed_pink', 'n': 'up_nightstand', 'w': 'up_writing_desk', 'A': 'up_wardrobe', 'R': 'up_rug_pink',
         'D': 'up_door', 'H': 'up_shower' },
       spawn: [4, 8], spawns: { from_bedroom_hall: [4, 8] }, spawnFacing: { from_bedroom_hall: 'up' },
-      marks: { window_spot: [4, 1], bed: [6, 3], bed_lie: [7, 2], desk: [2, 6], shower: [12, 2], bath_door: [9, 3], tablet: [2, 1], door: [4, 8], center: [4, 5], nightstand: [6, 2] },
+      marks: { window_spot: [4, 1], bed: [6, 3], bed_lie: [7, 2], desk: [2, 6], shower: [12, 2], bath_door: [9, 5], tablet: [2, 1], door: [4, 8], center: [4, 5], nightstand: [6, 2] },
       ambient: 'hum', tint: '#3a1a40', tintAlpha: 0.1, dark: 0.2, bg: '#07050a',
       lights: [{ at: [4, 1], r: 40 }, { at: [6, 1], r: 30 }, { at: [12, 3], r: 44 }],
       blindSpots: [{ id: 'wardrobe_bs', at: [1, 2], w: 1, h: 1, note: 'in front of the wardrobe (closet)' }],
@@ -624,7 +624,7 @@
         { id: 'desk', at: [1, 7], examine: [{ think: 'A writing desk. Everything on it belongs to them.' }] },
         { id: 'booklet', at: [2, 7], prop: 'up_booklet', examine: [{ think: 'The penguin booklet, and a pen stamped DPE.' }] },
         { id: 'tablet', at: [2, 0], prop: 'up_tablet', solid: false, examine: [{ think: "\"Curated memories.\" Waverly, on a loop. There is no off switch." }] },
-        { id: 'smoke_detector', at: [7, 0], prop: 'up_smoke_eye', solid: false, cam: { angle: 110, sweep: 0, range: 120, fov: 110 },
+        { id: 'smoke_detector', at: [3, 0], prop: 'up_smoke_eye', solid: false, cam: { angle: 70, sweep: 0, range: 120, fov: 110 },
           examine: [{ think: 'A smoke detector. The little light never blinks the way smoke detectors blink.' }] },
         { id: 'ginerva_button', at: [5, 9], prop: 'up_button_green', solid: false, examine: [{ think: 'A green button: SUMMON GINERVA. For emergencies after lockdown.' }] },
         { id: 'wardrobe', at: [1, 1], examine: [{ think: 'Grey DPE sweatsuits, all my size. They knew my size.' }] },
@@ -634,7 +634,7 @@
         { id: 'bath_toilet', at: [13, 5], examine: [{ think: 'Even in here, probably.' }] },
         { id: 'bath_mirror', at: [11, 0], prop: 'up_frame', solid: false, draw: function (g2, x, y) { px(g2, x + 2, y + 3, 12, 10, '#c9a24a'); px(g2, x + 3, y + 4, 10, 8, '#9ab0c0'); px(g2, x + 4, y + 5, 2, 5, '#c8dce8'); },
           examine: [{ think: 'Freckles. Red frizz. Still me.' }] },
-        cam('bath_cam', [13, 0], 120, { sweep: 0, range: 80, fov: 90, examine: [{ think: 'Filmed, never aired. That is the promise.' }] })
+        cam('bath_cam', [14, 2], 180, { sweep: 0, range: 80, fov: 90, examine: [{ think: 'Filmed, never aired. That is the promise.' }] })
       ],
       exits: [exit(ID, 'house_bedroom_hall', [4, 9], { lockedText: [{ think: 'Locked from the outside.' }] })]
     });
@@ -729,7 +729,7 @@
         { id: 'ballot_box', at: [2, 1], prop: 'up_toaster', layer: 1, examine: [{ think: 'The ballot box is shaped like a toaster. Of course it is.' }] },
         { id: 'ballot_slips', at: [3, 1], prop: 'up_slips', examine: [{ think: 'Ballot slips. Every name except the winner and the loser.' }] },
         cam('cam_confessional', [1, 0], 70, { sweep: 0, range: 64, fov: 90, examine: [{ think: 'A camera with a red light, an arm’s length from my face.' }] }),
-        { id: 'leader_wall', at: [2, 0], examine: [{ think: 'The Great Leader: speaking to children, saluting soldiers, staring at me. Three walls of him.' }] },
+        { id: 'leader_wall', at: [0, 2], examine: [{ think: 'The Great Leader: speaking to children, saluting soldiers, staring at me. Three walls of him.' }] },
         { id: 'white_wall', at: [4, 2], examine: [{ think: 'One fresh white wall. Waiting for something.' }] }
       ],
       exits: [exit(ID, 'house_doll_room', [2, 4], { lockedText: [{ think: 'The door is held shut from outside.' }] })]
@@ -902,8 +902,8 @@
         { id: 'desk', at: [1, deskY], examine: [{ think: 'A writing desk and a DPE pen.' }] },
         { id: 'wardrobe', at: [1, north ? 7 : 1], examine: [{ think: 'Grey sweatsuits, in someone else\'s size.' }] },
         { id: 'ginerva_button', at: [doorAt[0] + 1, doorAt[1]], prop: 'up_button_green', solid: false, examine: [{ think: 'SUMMON GINERVA.' }] },
-        { id: 'tablet', at: [6, north ? 9 : 0], prop: 'up_tablet', solid: false, examine: [{ think: 'Curated memories for somebody else. It won\'t turn off either.' }] },
-        { id: 'smoke_detector', at: [north ? 2 : 7, north ? 9 : 0], prop: 'up_smoke_eye', solid: false, cam: { angle: north ? 270 : 90, sweep: 0, range: 120, fov: 110 },
+        { id: 'tablet', at: [north ? 6 : 2, north ? 9 : 0], prop: 'up_tablet', solid: false, examine: [{ think: 'Curated memories for somebody else. It won\'t turn off either.' }] },
+        { id: 'smoke_detector', at: [north ? 2 : 5, north ? 9 : 0], prop: 'up_smoke_eye', solid: false, cam: { angle: north ? 270 : 90, sweep: 0, range: 120, fov: 110 },
           examine: [{ think: 'The same smoke detector. The same little light.' }] }
       ].concat(items),
       exits: [exit(ID, 'house_bedroom_hall', doorAt, { lockedText: [{ think: 'Locked from the outside.' }] })]
@@ -955,7 +955,7 @@
    * ------------------------------------------------------------------
    * exits: to_bedroom_hall [5,9]   spawns: from_bedroom_hall [5,8] (up)
    * marks: cot_1..cot_6 (tile beside each cot, where a visitor stands), cot_1_bed..cot_6_bed (the cot itself:
-   *        put a lying NPC there), medic [8,7], desk [8,6], behind_cots [2,1] (blind spot), center [5,5], door [5,8]
+   *        put a lying NPC there), medic [8,7], desk [9,7] (standing at the desk), behind_cots [2,1] (blind spot), center [5,5], door [5,8]
    * fixtures: cot_1..cot_6 (1×2 cots, top row), mat_* tiles, medic_desk, cabinet, cam_infirmary
    * blind spot: behind_cots_bs (row y=1 behind the cot heads)
    * ================================================================== */
@@ -965,7 +965,7 @@
     fill(g, 1, 1, 10, 8, ':');
     put(g, 5, 9, 'D');
     var cotX = [2, 4, 6, 8, 2, 4], cotY = [2, 2, 2, 2, 5, 5];
-    var objs = [], marks = { medic: [8, 7], desk: [9, 6], behind_cots: [2, 1], center: [6, 5], door: [5, 8] };
+    var objs = [], marks = { medic: [8, 7], desk: [9, 7], behind_cots: [2, 1], center: [6, 5], door: [5, 8] };
     for (var i = 0; i < 6; i++) {
       var x = cotX[i], y = cotY[i];
       put(g, x, y, 'z'); put(g, x, y + 1, 'z');          // solid under the cot
