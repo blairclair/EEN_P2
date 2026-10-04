@@ -73,7 +73,7 @@
     g.restore();
     // title with chromatic offset + glitch
     var game = G.manifest.game || {};
-    var title = game.title || 'LIVE JUDGMENT';
+    var title = game.title || 'RIGHT TO LIFE';
     var gl = Math.random() < 0.04 ? (Math.random() * 6 - 3) : 0;
     R.text(title, cx - 1.5 + gl, 92, { size: 30, font: 'title', style: '', align: 'center', color: 'rgba(0,220,255,0.6)', shadow: false });
     R.text(title, cx + 1.5 - gl, 92, { size: 30, font: 'title', style: '', align: 'center', color: 'rgba(255,40,60,0.7)', shadow: false });
@@ -199,7 +199,7 @@
         R.rect(0, 0, G.W, G.H, '#030305');
         R.static(0.03);
         var y0 = G.H - o.t * 22;
-        R.text(game.title || 'LIVE JUDGMENT', G.W / 2, y0, { size: 20, font: 'title', style: '', align: 'center' });
+        R.text(game.title || 'RIGHT TO LIFE', G.W / 2, y0, { size: 20, font: 'title', style: '', align: 'center' });
         lines.forEach(function (l, i) { R.text(l, G.W / 2, y0 + 40 + i * 14, { size: 8, align: 'center', color: l === l.toUpperCase() && l ? P.amber : P.text }); });
         R.vignette(0.6);
       }

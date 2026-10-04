@@ -87,8 +87,10 @@
     setTimeout(async function () {
       await G.UI.fadeTo(1, 700);
       G.Audio.ambient(null);
-      if (next) { Game.startChapter(next); return; }
+      // isolated autoplay test (?chapter=X&auto=1): stop after the tested chapter
+      if (next && !(G.auto && G.params.chapter)) { Game.startChapter(next); return; }
       G.UI.clear(); G.World.active = false; G.UI.fx.fade = 0; Game.session = null;
+      if (G.auto && G.params.chapter) { G.log('[isolated test done] next would be ' + next); G.Menus.title(); return; }
       if (def && def.hidden) {
         await G.UI.titleCard(def.title || id, 'Complete', 2200);
         G.Menus.title();
