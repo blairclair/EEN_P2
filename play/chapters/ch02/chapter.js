@@ -250,8 +250,8 @@
       'BBBBBWBBBBBWBB',
       'B,,,,,,,,,,SSB',
       'B,,,,,,,,,,SSB',
-      'B,,TT,,,,,,ZSB',
-      'B,,TT,,,,,,,,B',
+      'B,,,,,,,,,,ZSB',
+      'B,,,,,,,,,,,,B',
       'B,,,,,,,,,,,,B',
       'Bhh,,,,,,,,,VB',
       'BBBBBBBBBBBBBB'
@@ -262,16 +262,16 @@
     tint: '#802020', tintAlpha: 0.22,
     vignette: 0.8,
     npcs: [
-      { id: 'felton', at: [7, 3], spec: 'ch02:felton', facing: 'left' },
-      { id: 'kidA', at: [8, 2], spec: 'ch02:kid_a', facing: 'left' },
-      { id: 'kidB', at: [8, 4], spec: 'ch02:kid_b', facing: 'left' }
+      { id: 'felton', at: [6, 3], spec: 'ch02:felton', facing: 'left' },
+      { id: 'kidA', at: [7, 2], spec: 'ch02:kid_a', facing: 'left' },
+      { id: 'kidB', at: [7, 4], spec: 'ch02:kid_b', facing: 'left' }
     ],
     objects: [
       { id: 'cb_tvset', at: [12, 6], examine: 'The wall TV. It is always on. It is always EEN.' },
       { id: 'cb_closetdoor', at: [11, 3], examine: [{ think: 'The closet under the stairs. Everyone knows what it smells like.' }] }
     ],
     zones: [
-      { id: 'rationsline', at: [5, 2], w: 1, h: 3 }
+      { id: 'rationsline', at: [4, 2], w: 1, h: 3 }
     ]
   };
 
@@ -677,6 +677,8 @@
     api.remove(id);
   }
 
+  function hasShared(id) { return !!(G.shared && G.shared.has && G.shared.has(id)); }
+
   /* ---------------------------------------------------------------------
    * REGISTRATION
    * ------------------------------------------------------------------- */
@@ -690,8 +692,12 @@
     maps: {
       whiteroom: whiteRoom,
       cblock: cblock,
-      columbus: columbus,
-      closet: (G.shared && G.shared.has && G.shared.has('columbus_closet')) ? G.shared.map('columbus_closet', {}) : closetLocal,
+      columbus_lounge: hasShared('columbus_lounge') ? G.shared.map('columbus_lounge', {
+        npcs: columbus.npcs, zones: columbus.zones,
+        remove: ['to_columbus_dorm', 'to_columbus_closet', 'to_columbus_office', 'to_columbus_yard'],
+        ambient: 'tension', tint: '#802020', tintAlpha: 0.22, vignette: 0.8
+      }) : columbus,
+      columbus_closet: hasShared('columbus_closet') ? G.shared.map('columbus_closet', { remove: ['to_columbus_lounge'] }) : closetLocal,
       alley: alley,
       visit: visit,
       infirm: infirm,
@@ -903,7 +909,7 @@
 
       /* ================= 4a. PANIC: COLUMBUS AT TWELVE ================= */
       api.setPlayer('ch02:luna_twelve');
-      await api.goRoom('columbus', { at: [2, 3], facing: 'right', fade: true });
+      await api.goRoom('columbus_lounge', { at: [2, 3], facing: 'right', fade: true });
       await api.lowerThird('COLUMBUS HOUSE', 'Luna, age 12', 3000);
       await api.narrate('Me, at twelve. A tray in my hands. The older kids at the end of the hall, waiting.');
       api.objective('Walk past them', { target: 'rationsline' });
@@ -916,7 +922,7 @@
       var beg = await api.choice(['(Get on your knees and beg.)', '(Refuse.)']);
       if (beg === 1) {
         await api.say('ch02:luna_twelve', 'No. It\'s mine.', { mood: 'angry' });
-        await api.move('felton', [6, 3]);
+        await api.move('felton', [5, 3]);
         api.sound('hit'); await api.shake(400, 3);
         await api.narrate('The tray hits the floor before I do.');
       }
@@ -929,14 +935,14 @@
       /* ================= 4b. PANIC: THE CLOSET AT EIGHT ================= */
       api.remove('felton'); api.remove('kidA'); api.remove('kidB');
       api.setPlayer('luna_child_columbus');
-      api.teleport([9, 4], 'right');
-      api.addNpc({ id: 'staff', at: [10, 4], spec: 'ch02:staff', facing: 'left' });
+      api.teleport([4, 2], 'right');
+      api.addNpc({ id: 'staff', at: [5, 2], spec: 'ch02:staff', facing: 'left' });
       await api.lowerThird('COLUMBUS HOUSE', 'Luna, age 8', 3000);
       await api.say('luna_child_columbus', 'I want my mom. They took my mom. Please, I want to call her.', { mood: 'cry' });
       await api.say('ch02:staff', ['Your mother isn\'t taking calls. You\'re a ward of the state now.', 'Toughen up.'], { mood: 'angry' });
       await api.narrate('Pleading with one of the few adults in charge. Never receiving help. Being told to toughen up.');
       await api.fadeOut(500, '#000');
-      await api.goRoom('closet', { fade: false });
+      await api.goRoom('columbus_closet', { at: [1, 2], fade: false });
       api.remove('staff');
       await api.fadeIn(500);
       api.sound('door');
