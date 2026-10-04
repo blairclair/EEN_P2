@@ -939,7 +939,7 @@
           title: 'WAVERLY\'S NOTE', prompt: hints === 0 ? 'No!  …and then numbers.' : 'Numbers stand for letters',
           showKey: hints >= 2, revealKey: hints >= 3, canGiveUp: true
         };
-        if (hints >= 1) params.hint = hintText[Math.min(hints, 3)];
+        params.hint = hints >= 1 ? hintText[Math.min(hints, 3)] : 'Stuck? [TAB] to step back and think.';
         if (hints >= 2) params.given = ['A'];
         var res = await api.minigame('cipher', params);
         if (res && res.success) { solved = true; break; }
