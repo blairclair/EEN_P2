@@ -44,6 +44,21 @@
    * drawing helpers
    * ==================================================================== */
   function px(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
+  // Three small dolls on one shelf, varied by tile position so rows don't repeat.
+  var DOLL_DRESS = ['#8a2030', '#5a3a6a', '#2a4a6a', '#6a5a2a', '#3a5a3a'];
+  var DOLL_HAIR = ['#e8c070', '#3a2018', '#b04020', '#d8d0c0', '#101010'];
+  function dollRow(g, x, y, seed, salt) {
+    for (var i = 0; i < 3; i++) {
+      var k = (seed * 7 + salt * 3 + i * 5) % 5;
+      var dx = x + 1 + i * 5;
+      px(g, dx + 1, y, 3, 1, DOLL_HAIR[k]);               // hair
+      px(g, dx + 1, y + 1, 3, 2, '#e8d8c8');              // porcelain face
+      px(g, dx + 1, y + 1, 1, 1, '#101018');              // hollow eyes
+      px(g, dx + 3, y + 1, 1, 1, '#101018');
+      px(g, dx + 1, y + 2, 1, 2, '#8a1018');              // red streaks
+      px(g, dx, y + 3, 5, 3, DOLL_DRESS[(k + i) % 5]);    // dress
+    }
+  }
   function shade(hex, amt) {
     var n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, gg = (n >> 8) & 255, b = n & 255;
     function f(v) { return Math.max(0, Math.min(255, Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt)))); }
