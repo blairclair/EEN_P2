@@ -564,7 +564,7 @@
     },
     v_reflection: async function () {
       if (!SIM || !SIM.active) { await A.think('Mirrored glass.'); return; }
-      await A.narrate('Mirrored glass, floor to sky. A woman looks back at you from the middle of the crowd: red hair escaping its knot, one eye starting to swell' + (SIM.elbowed ? '' : ' (no, not yet)') + '.');
+      await A.narrate('Mirrored glass, floor to sky. A woman looks back at you from the middle of the crowd: red hair escaping its knot' + (SIM.elbowed ? ', one eye swelling shut' : '') + '.');
       await A.think('Just one more face on the sidewalk. Part of the crowd.');
       if (SIM.self) {
         var r = await A.choice(['You are not going to die.', '(Leave it.)'], { autoPick: 1 });
