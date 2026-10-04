@@ -675,7 +675,8 @@
 
       api.set('ch09_gotPass', false);
       api.onInteract('ginerva', async function (api) {
-        if (!api.get('ch09_lobbyTalks', 0) && !api.get('ch09_gaveUpWaiting')) {
+        if (!api.get('ch09_lobbyTalks', 0) && !api.get('ch09_gaveUpWaiting') && !api.get('ch09_deferredOnce')) {
+          api.set('ch09_deferredOnce', true);   // deferral is one-time: any 2nd talk progresses (autoplay-safe under every --pick)
           await api.say('ginerva', 'Passes are not printed yet, Miss Bartley. Stand still. Touch nothing.', { mood: 'neutral' });
           var w = await api.choice(['I\'ll stand still.', 'Fine. (Look around first.)']);
           if (w === 1) return;
