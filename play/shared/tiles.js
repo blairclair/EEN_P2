@@ -133,6 +133,10 @@
       px(g, x + 8, y + 4, 1, 8, '#3a2a1a');
     } },
 
+    h_roof: { solid: true, draw: function (g, x, y, info) {   // slate roof of the House seen from above (grounds map)
+      px(g, x, y, T, T, '#23202a'); for (var i = 0; i < 4; i++) { var o = (i + info.ty) % 2 ? 0 : 4; px(g, x, y + i * 4 + 3, T, 1, '#16141c'); px(g, x + o, y + i * 4, 1, 3, '#16141c'); px(g, x + o + 8, y + i * 4, 1, 3, '#16141c'); }
+      if (info.r > 0.85) px(g, x + 5, y + 5, 3, 2, '#2e2a36');
+    } },
     /* ------------------------------------------------------------- floors */
     h_parquet: { draw: function (g, x, y, info) {
       px(g, x, y, T, T, '#3a2618');
@@ -143,10 +147,10 @@
       px(g, x, y, T, T, '#7a0e18'); speck(g, x, y, '#5a0810', 10, info.tx * 3 + info.ty, 0.7); speck(g, x, y, '#9a1a24', 5, info.tx + info.ty * 9, 0.6);
     } },
     h_marble: { draw: function (g, x, y, info) {
-      px(g, x, y, T, T, '#d8d4cc'); px(g, x, y + T - 1, T, 1, '#b8b2a8'); px(g, x + T - 1, y, 1, T, '#b8b2a8');
-      var r = info.r; px(g, x + 2 + Math.floor(r * 6), y + 3, 5, 1, '#bab4ac'); px(g, x + 6 + Math.floor(r * 4), y + 4, 1, 5, '#c4beb4'); px(g, x + 3, y + 10, 4, 1, '#c8c2b8');
+      px(g, x, y, T, T, '#a8a29a'); px(g, x, y + T - 1, T, 1, '#8a847c'); px(g, x + T - 1, y, 1, T, '#8a847c');
+      var r = info.r; px(g, x + 2 + Math.floor(r * 6), y + 3, 5, 1, '#948e86'); px(g, x + 6 + Math.floor(r * 4), y + 4, 1, 5, '#9a948c'); px(g, x + 3, y + 10, 4, 1, '#b2aca4');
     } },
-    h_kitchen_tile: { color: '#c8c4b8', color2: '#3a3a3a', pattern: 'checker' },
+    h_kitchen_tile: { color: '#a29e94', color2: '#46444a', pattern: 'checker' },
     h_bluetile: { draw: function (g, x, y, info) { px(g, x, y, T, T, '#3a6a9a'); px(g, x, y + T - 1, T, 1, '#2a4a6a'); px(g, x + T - 1, y, 1, T, '#2a4a6a'); px(g, x + 2, y + 2, 5, 1, 'rgba(255,255,255,0.25)'); void info; } },
     h_rubber: { draw: function (g, x, y, info) { px(g, x, y, T, T, '#25272c'); speck(g, x, y, '#30333a', 12, info.tx * 5 + info.ty, 1); if (info.ty % 6 === 0) px(g, x, y, T, 1, '#e8c15a'); } },
     h_starfloor: { anim: true, draw: function (g, x, y, info) {

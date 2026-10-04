@@ -543,5 +543,232 @@
     }));
   })();
 
+  /* ================================================================== OFF-SITE */
+  function simpleDef(name, g, legend, extra) {
+    var def = { name: name, tiles: g.rows(), legend: legend, bg: '#050409', npcs: [], objects: [], zones: [], exits: [], lights: [], spawns: {}, marks: {} };
+    Object.keys(extra).forEach(function (k) { def[k] = extra[k]; });
+    return def;
+  }
+
+  /* ---------------- execution_amphitheatre (ch06/08/13) ---------------- */
+  (function () {
+    var g = new Grid(32, 22, '_');
+    g.rect(0, 0, 32, 2, '#').rect(0, 21, 32, 1, '#').rect(0, 0, 1, 22, '#').rect(31, 0, 1, 22, '#');
+    g.rect(3, 2, 26, 5, 'S').rect(1, 2, 2, 5, 'C').rect(29, 2, 2, 5, 'C');      // stage + wing curtains
+    g.set(2, 4, 'S').set(29, 4, 'S');                                            // wing openings
+    g.rect(1, 7, 30, 1, 'F').rect(15, 7, 2, 1, 'k');                             // stage front + stairs
+    g.rect(8, 9, 16, 3, 'R');                                                    // robot camera banks (bottom 3 rows)
+    g.rect(1, 9, 7, 1, 'H').rect(7, 10, 1, 2, 'I').rect(1, 10, 6, 2, 'x');      // families' box
+    g.rect(24, 9, 7, 1, 'v').rect(24, 10, 1, 3, 'I').rect(25, 10, 6, 3, 'x');   // VIP box
+    g.rect(1, 12, 23, 1, 'A').rect(1, 13, 30, 5, 'A');                           // human seats (top rows)
+    g.rect(15, 9, 2, 9, '^');                                                    // centre aisle
+    g.rect(1, 19, 30, 1, 'X').rect(15, 19, 2, 1, '^');                           // chained prisoners' row
+    var objs = [
+      { id: 'holoscreen', at: [10, 0], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 12, title: 'EXECUTION ENTERTAINMENT NETWORK', subtitle: 'LIVE • VOTE THE METHOD IN THE APP',
+        examine: 'The screen over the stage. EXECUTION ENTERTAINMENT NETWORK, in letters taller than a person.' },
+      { id: 'gurney', at: [15, 4], prop: 'gx_gurney', examine: 'A gurney with leather straps. An IV stand beside it, the bag already hung.' },
+      { id: 'gallows', at: [20, 4], prop: 'gx_gallows', solid: false, layer: -1, examine: 'A gallows. The trapdoor is painted with the network logo.' },
+      { id: 'cage', at: [4, 4], prop: 'gx_cage', layer: 1, examine: 'The Cage, wheeled in from the bus.' },
+      { id: 'families_box', at: [4, 9], examine: 'The front-row box for the victims\' families. Tissues on every seat, branded.' },
+      { id: 'vip_box', at: [27, 9], examine: 'The VIP box, behind glass. Champagne. Nobody in there is watching the stage.' },
+      { id: 'balloons', at: [0, 2], prop: 'gx_balloons', solid: false, layer: 1, wTiles: 32, hTiles: 15, count: 22 },
+      cam('cam_1', [1, 8]), cam('cam_2', [30, 8])
+    ];
+    var npcs = [
+      { id: 'vendor_1', at: [9, 18], spec: 'vendor', facing: 'up', talk: 'Tomatoes! Two for five! T-shirts!' },
+      { id: 'vendor_2', at: [22, 18], spec: 'vendor', facing: 'up', talk: '"I saw them die and all I got was this bloody T-shirt." Very funny. Very collectible.' }
+    ];
+    reg('execution_amphitheatre', simpleDef('Execution Amphitheatre', g, {
+      '#': 'gx_wall', '_': 'concrete', 'S': 'gx_stagefloor', 'C': 'curtain', 'F': 'gx_stagefront', 'k': 'gx_stairs', 'R': 'gx_robocams', 'H': 'gx_rail', 'I': 'gx_railv',
+      'x': 'gx_boxfloor', 'v': 'gx_vipglass', 'A': 'gx_crowd', '^': 'gx_bleacher_step', 'X': 'gx_prisoners'
+    }, {
+      ambient: 'crowd', tint: '#4a0a14', tintAlpha: 0.1, dark: 0.35, playerLight: 50, spawn: [5, 4],
+      lights: [{ at: [15, 4], r: 90 }, { at: [20, 4], r: 60 }, { at: [5, 4], r: 44, flicker: true }, { at: [15, 13], r: 90 }, { at: [4, 10], r: 50 }, { at: [27, 11], r: 56 }, { at: [8, 18], r: 60 }, { at: [23, 18], r: 60 }, { at: [10, 19], r: 50, flicker: true }],
+      objects: objs, npcs: npcs,
+      spawns: { from_cage: [5, 4] },
+      marks: { stage_center: [15, 4], stage_front: [15, 6], gallows: [20, 4], cage: [4, 4], wing_left: [5, 4], wing_right: [26, 4], host: [12, 5], judge: [18, 6],
+        security_1: [10, 8], security_2: [13, 8], security_3: [18, 8], security_4: [21, 8], families_box: [4, 10], vip_box: [27, 11], aisle: [15, 15],
+        prisoners_row: [10, 19], crowd_front: [9, 12], vendor: [15, 18] }
+    }));
+  })();
+
+  /* ---------------- DPE HQ (ch09) ---------------- */
+  (function () {
+    var g = new Grid(20, 14, 'o');
+    g.rect(0, 0, 20, 2, '#').rect(0, 13, 20, 1, '#').rect(0, 0, 1, 14, '#').rect(19, 0, 1, 14, '#');
+    g.rect(9, 1, 2, 1, 'E').set(19, 7, 'D').rect(9, 13, 2, 1, 'D');
+    g.rect(7, 5, 6, 1, 'K').set(1, 2, 'P').set(18, 2, 'P').set(1, 11, 'P').set(18, 11, 'P');
+    g.rect(2, 8, 1, 3, 'h').rect(17, 8, 1, 3, 'h');
+    reg('dpe_hq_lobby', simpleDef('DPE Headquarters: Lobby', g, { '#': 'gx_bluewall', 'E': 'gx_elevator', 'o': 'gx_blueTile' }, {
+      ambient: 'hum', spawn: [10, 12], tint: '#2a5a8a', tintAlpha: 0.06,
+      objects: [
+        { id: 'trespass_sign', at: [3, 1], prop: 'sign', solid: false, examine: '"Trespassing on Government property is a punishable offence and may be punished with fines, imprisonment, or participation in mandatory punitive entertainment."' },
+        { id: 'checkin_desk', at: [10, 5], examine: 'A smooth check-in desk. A stack of guest stickers: "DPE Participant".' },
+        { id: 'elevators', at: [9, 1], examine: 'Elevators. The buttons only work with a badge.' },
+        { id: 'penguin_logo', at: [14, 1], prop: 'poster', solid: false, examine: 'The DPE penguin, smiling.' },
+        cam('cam_1', [17, 2]), cam('cam_2', [2, 12])
+      ],
+      exits: [iExit('to_dpe_hq_cells', [19, 7], [1, 1], 'dpe_hq_cells', [1, 5], 'right'),
+        iExit('to_dpe_hq_studio', [9, 2], [2, 1], 'dpe_hq_studio', [11, 12], 'up'),
+        xExit('to_show_bus', [9, 13], [2, 1], 'show_bus', 'from_dpe_hq_lobby', 'down')],
+      spawns: { from_show_bus: [10, 12], from_dpe_hq_cells: [18, 7], from_dpe_hq_studio: [10, 3] },
+      marks: { desk: [10, 6], desk_clerk: [10, 4], sign: [3, 2], line_start: [10, 9], elevators: [10, 2] }
+    }));
+
+    var c = new Grid(24, 8, '_');
+    c.rect(0, 0, 24, 2, '#').rect(0, 7, 24, 1, '#').rect(0, 0, 1, 8, '#').rect(23, 0, 1, 8, '#');
+    c.rect(1, 2, 22, 2, 'c').rect(1, 4, 22, 1, '|').set(0, 5, 'D');
+    var CELLS = [[1, 3], [5, 3], [9, 2], [12, 1], [14, 3], [18, 2], [21, 2]];  // [x, width]
+    var cobjs = [], cmarks = { guard: [20, 6], corridor: [12, 6] };
+    for (var i = 0; i < CELLS.length; i++) {
+      var x = CELLS[i][0], w = CELLS[i][1], end = x + w;
+      if (end <= 22) c.rect(end, 2, 1, 3, '#');
+      var luna = w === 1, nm = luna ? 'cell_luna' : 'cell_' + (i < 3 ? i + 1 : i);
+      cobjs.push({ id: 'tv_' + (i + 1), at: [x, 2], prop: 'gx_bigtv', examine: luna ? 'A TV bolted at eye level, so close it fills the cell. It shows the poll. Your face. 16%.' : 'A small TV, playing the network.' });
+      cmarks[nm] = [x + w - 1, 3];
+    }
+    cobjs.push(cam('cam_1', [3, 1]), cam('cam_2', [12, 1]), cam('cam_3', [19, 1]));
+    cobjs.push({ id: 'guard_desk', at: [21, 6], prop: 'monitor', examine: 'A guard\'s monitor wall: every cell, every angle.' });
+    reg('dpe_hq_cells', simpleDef('DPE Headquarters: Holding Cells', c, { '#': 'gx_bluewall', 'c': 'gx_cellfloor' }, {
+      ambient: 'hum', spawn: [1, 5], dark: 0.25, playerLight: 50,
+      lights: [{ at: [6, 5], r: 60 }, { at: [17, 5], r: 60 }, { at: [12, 3], r: 30, flicker: true }],
+      objects: cobjs,
+      exits: [iExit('to_dpe_hq_lobby', [0, 5], [1, 1], 'dpe_hq_lobby', [18, 7], 'left')],
+      spawns: { from_dpe_hq_lobby: [1, 5] }, marks: cmarks
+    }));
+
+    var s = new Grid(22, 14, 'o');
+    s.rect(0, 0, 22, 2, '#').rect(0, 13, 22, 1, '#').rect(0, 0, 1, 14, '#').rect(21, 0, 1, 14, '#');
+    s.rect(6, 2, 10, 6, 's').set(11, 13, 'D');
+    s.rect(2, 9, 18, 3, 'Q').rect(11, 9, 1, 3, 'o');
+    reg('dpe_hq_studio', simpleDef('DPE Headquarters: Studio', s, { '#': 'gx_wall', 'o': 'gx_studio', 'Q': 'gx_seats' }, {
+      ambient: 'crowd', spawn: [11, 12], tint: '#3a1a4a', tintAlpha: 0.08, dark: 0.3, playerLight: 50,
+      lights: [{ at: [11, 4], r: 90 }, { at: [11, 10], r: 80 }, { at: [3, 10], r: 50 }, { at: [19, 10], r: 50 }],
+      objects: [
+        { id: 'holoscreen', at: [5, 0], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 12, title: 'FRIENDS & FAMILY', subtitle: 'A RIGHT TO LIFE SPECIAL' },
+        { id: 'plinth', at: [11, 2], prop: 'gx_plinth', examine: 'A plinth hung with paper stars, like the ball. Somebody\'s idea of whimsy.' },
+        { id: 'chair_guest', at: [9, 5], prop: 'gx_armchair', solid: false, color: '#7a3a5a', examine: 'The guest\'s armchair. Soft enough to sink in.' },
+        { id: 'chair_host', at: [13, 5], prop: 'gx_armchair', solid: false, color: '#3a4a7a', examine: 'The host\'s armchair, angled to the camera.' },
+        { id: 'coffee_table', at: [11, 5], prop: 'gx_coffeetable', examine: 'A coffee table. Two mugs nobody will drink from.' },
+        { id: 'robocam_1', at: [8, 8], prop: 'gx_robocam', examine: 'A studio camera.' },
+        { id: 'robocam_2', at: [14, 8], prop: 'gx_robocam', examine: 'A studio camera, red light on.' }
+      ],
+      exits: [iExit('to_dpe_hq_lobby', [11, 13], [1, 1], 'dpe_hq_lobby', [10, 3], 'down')],
+      spawns: { from_dpe_hq_lobby: [11, 12] },
+      marks: { chair_guest: [9, 5], chair_host: [13, 5], table: [11, 5], plinth: [11, 2], audience: [11, 10], wings: [6, 6], camera: [11, 8], stage_front: [11, 7] }
+    }));
+  })();
+
+  /* ---------------- Columbus House (ch02/07/12/16 flashbacks) ---------------- */
+  (function () {
+    var COL = { '#': 'brick', 'o': 'gx_oldfloor', 'u': 'gx_bunk', 'i': 'gx_linoleum', 'k': 'gx_stairs' };
+    var d = new Grid(16, 12, 'o');
+    d.rect(0, 0, 16, 2, '#').rect(0, 11, 16, 1, '#').rect(0, 0, 1, 12, '#').rect(15, 0, 1, 12, '#');
+    d.set(3, 1, 'W').set(12, 1, 'W').set(8, 11, 'D');
+    var bunks = [];
+    [3, 6].forEach(function (y) { [1, 2, 4, 5, 10, 11, 13, 14].forEach(function (x) { bunks.push([x, y]); }); });
+    [1, 2, 13, 14].forEach(function (x) { bunks.push([x, 9]); });
+    bunks.forEach(function (b) { d.set(b[0], b[1], 'u'); });
+    reg('columbus_dorm', simpleDef('Columbus House: Dorm', d, COL, {
+      ambient: 'hum', spawn: [8, 10], tint: '#2a2a3a', tintAlpha: 0.12,
+      objects: [
+        { id: 'dorm_tv', at: [8, 1], prop: 'gx_bigtv', solid: false, examine: 'The dorm TV. It never turns off.' },
+        { id: 'bunk_luna', at: [2, 3], examine: 'Luna\'s bunk. A thin blanket and a book under the pillow.' },
+        { id: 'bunk_salina', at: [4, 3], examine: 'Salina\'s bunk. A blue hair clip on the pillow.' },
+        cam('cam_1', [14, 2])
+      ],
+      exits: [iExit('to_columbus_lounge', [8, 11], [1, 1], 'columbus_lounge', [3, 2], 'down')],
+      spawns: { from_columbus_lounge: [8, 10] },
+      marks: { bunk_luna: [2, 3], bunk_salina: [4, 3], android: [8, 6], tv: [8, 2], door: [8, 10] }
+    }));
+
+    var l = new Grid(14, 10, 'o');
+    l.rect(0, 0, 14, 2, '#').rect(0, 9, 14, 1, '#').rect(0, 0, 1, 10, '#').rect(13, 0, 1, 10, '#');
+    l.rect(2, 1, 2, 1, 'k').set(5, 1, 'D').set(13, 5, 'D').set(7, 9, 'D');
+    l.rect(8, 3, 3, 1, 'h').rect(6, 5, 5, 3, 'R').set(1, 7, 'k');
+    l.set(1, 7, 'X');
+    reg('columbus_lounge', simpleDef('Columbus House: Lounge', l, COL, {
+      ambient: 'hum', spawn: [7, 8], tint: '#3a2a1a', tintAlpha: 0.12,
+      objects: [
+        { id: 'lounge_tv', at: [9, 1], prop: 'gx_bigtv', solid: false, examine: 'The lounge TV. EduTV, all day.' },
+        { id: 'toys', at: [10, 7], prop: 'gx_bear', examine: 'Tattered toys. A bear with one eye, a doll with no hair.' },
+        { id: 'toy_box', at: [1, 7], examine: 'A toy box. Everything in it is broken in a different way.' },
+        { id: 'closet_door', at: [5, 1], examine: 'The closet under the stairs. It smells of urine from here.' },
+        cam('cam_1', [12, 2])
+      ],
+      exits: [iExit('to_columbus_dorm', [2, 1], [2, 1], 'columbus_dorm', [8, 10], 'up'),
+        iExit('to_columbus_closet', [5, 1], [1, 1], 'columbus_closet', [1, 2], 'up'),
+        iExit('to_columbus_office', [13, 5], [1, 1], 'columbus_office', [1, 3], 'right'),
+        iExit('to_columbus_yard', [7, 9], [1, 1], 'columbus_yard', [9, 12], 'down')],
+      spawns: { from_columbus_dorm: [3, 2], from_columbus_closet: [5, 2], from_columbus_office: [12, 5], from_columbus_yard: [7, 8] },
+      marks: { couch: [9, 4], toys: [10, 6], staff: [7, 4], stairs: [3, 2] }
+    }));
+
+    var k = new Grid(4, 4, '#');
+    k.rect(1, 1, 2, 2, 'o').set(1, 3, 'D');
+    reg('columbus_closet', simpleDef('The Closet', k, COL, {
+      ambient: 'drone', spawn: [1, 2], dark: 0.88, playerLight: 18, lights: [{ at: [1, 3], r: 14 }],
+      objects: [{ id: 'closet_bucket', at: [2, 1], prop: 'bucket', examine: 'A bucket. The smell is worse down here.' }],
+      exits: [iExit('to_columbus_lounge', [1, 3], [1, 1], 'columbus_lounge', [5, 2], 'down')],
+      spawns: { from_columbus_lounge: [1, 2] }, marks: { inside: [1, 1] }
+    }));
+
+    var o = new Grid(8, 6, 'i');
+    o.rect(0, 0, 8, 1, '#').rect(0, 5, 8, 1, '#').rect(0, 0, 1, 6, '#').rect(7, 0, 1, 6, '#');
+    o.rect(3, 2, 3, 1, 'd').set(1, 1, 'l').set(6, 1, 'k').set(0, 3, 'D');
+    o.set(6, 1, 'P');
+    reg('columbus_office', simpleDef('Columbus House: Director\'s Office', o, merge(COL, { 'k': 'shelf' }), {
+      ambient: 'hum', spawn: [1, 3],
+      objects: [
+        { id: 'house_phone', at: [4, 2], prop: 'gx_phone', examine: 'The house phone. The only line out of Columbus.' },
+        { id: 'files', at: [1, 1], examine: 'A filing cabinet. Every child in this house is a folder.' }
+      ],
+      exits: [iExit('to_columbus_lounge', [0, 3], [1, 1], 'columbus_lounge', [12, 5], 'left')],
+      spawns: { from_columbus_lounge: [1, 3] }, marks: { phone: [4, 3], director: [4, 1] }
+    }));
+
+    var y = new Grid(20, 14, '"');
+    y.rect(0, 0, 20, 1, 'w').rect(0, 1, 20, 1, 'f').rect(0, 1, 1, 12, 'f').rect(19, 1, 1, 12, 'f').rect(0, 13, 20, 1, '#');
+    y.set(14, 1, 'x').set(14, 0, 'x').set(9, 13, 'D').rect(9, 9, 1, 4, 'x').rect(10, 9, 3, 1, 'x');
+    reg('columbus_yard', simpleDef('Columbus House: Yard', y, merge(COL, { 'f': 'gx_fence', 'w': 'gx_woods' }), {
+      ambient: 'drone', spawn: [9, 12], tint: '#1a2a3a', tintAlpha: 0.15,
+      objects: [
+        { id: 'oak', at: [5, 6], prop: 'gx_oak', examine: 'The oak. Luna\'s reading tree. The bark is worn smooth where she leans.' },
+        { id: 'fence_gap', at: [14, 1], examine: 'A gap in the back fence. Beyond it, the woods.' }
+      ],
+      exits: [iExit('to_columbus_lounge', [9, 13], [1, 1], 'columbus_lounge', [7, 8], 'down'),
+        xExit('to_woods', [14, 0], [1, 1], 'woods', 'from_columbus_yard', 'up')],
+      spawns: { from_columbus_lounge: [9, 12], from_woods: [14, 2] },
+      marks: { oak: [5, 7], fence_gap: [14, 1], fence: [9, 2], back_door: [9, 12] }
+    }));
+  })();
+
+  /* ---------------- luna_apartment (ch01, ch16 memory) ---------------- */
+  (function () {
+    var a = new Grid(10, 8, 'o');
+    a.rect(0, 0, 10, 1, '#').rect(0, 7, 10, 1, '#').rect(0, 0, 1, 8, '#').rect(9, 0, 1, 8, '#');
+    a.set(7, 0, 'W').set(7, 7, 'D');
+    a.rect(1, 3, 1, 2, 'h').set(3, 1, 'O').set(4, 1, 'K').set(5, 1, 'F');
+    a.rect(6, 1, 1, 2, 'c').set(8, 2, 'b');
+    reg('luna_apartment', simpleDef('Apartment 3C', a, { '#': 'wall', 'o': 'gx_apt_floor', 'c': 'gx_curtain' }, {
+      ambient: 'hum', spawn: [7, 6], dark: 0.45, playerLight: 44, tint: '#1a2a4a', tintAlpha: 0.12,
+      lights: [{ at: [7, 1], r: 48 }, { at: [5, 2], r: 30 }],
+      objects: [
+        { id: 'fridge', at: [5, 1], examine: 'The fridge. Inside: one slice of bologna, going grey. The door is where the notes go.' },
+        { id: 'stove', at: [3, 1], examine: 'Two burners. One works.' },
+        { id: 'peanut_butter', at: [4, 1], prop: 'cup', solid: false, examine: 'The peanut-butter jar, scraped clean with a spoon.' },
+        { id: 'owl_clock', at: [2, 0], prop: 'gx_owlclock', solid: false, examine: '"HOPE YOU HAVE A HOOT OF A GOOD DAY." 3:00 a.m.' },
+        { id: 'couch', at: [1, 3], examine: 'The couch. Lumpy. Luna\'s bed.' },
+        { id: 'curtain', at: [6, 1], examine: 'A curtain on a wire, so Waverly has a room of her own.' },
+        { id: 'waverly_bed', at: [8, 2], examine: 'Waverly\'s bed corner.' },
+        { id: 'bartholomew', at: [8, 1], prop: 'gx_bear', solid: false, examine: 'Bartholomew the bear, guarding the pillow.' },
+        { id: 'books', at: [7, 1], prop: 'gx_books', solid: false, examine: 'Nine library books. None of them were ever returned.' }
+      ],
+      exits: [xExit('to_street', [7, 7], [1, 1], 'street', 'from_luna_apartment', 'down')],
+      spawns: { from_street: [7, 6] },
+      marks: { couch: [1, 3], beside_couch: [2, 4], waverly_bed: [8, 2], waverly_corner: [7, 3], fridge: [5, 2], kitchen: [4, 2], door: [7, 6], window: [7, 1] }
+    }));
+  })();
+
   G.shared.data.gx = { Grid: Grid, xExit: xExit, iExit: iExit, reg: reg, cam: cam, people: people };
 })();

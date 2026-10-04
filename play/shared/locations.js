@@ -81,12 +81,10 @@
     '=': 'h_stairs', 'a': 'h_armchair', 'h': 'h_couch_leather', 'v': 'h_couch_velvet', 'i': 'h_island', 'n': 'h_bench_bolted',
     'T': 'h_banquet', 'k': 'h_shelf_tall', 'F': 'h_fridge_big', 'W': 'h_window_garden', 'M': 'h_mirror_strip',
     'E': 'h_screen_wall', 'I': 'h_leader_wall', 'y': 'h_gold_carpet', 'Q': 'h_wall_white', 'g': 'h_green_floor',
-    'e': 'h_wall_green', 'O': 'h_wall_gold', 'd': 'h_desk_gold', 'j': 'h_toilet_auto', 'J2': null,
-    'w': 'h_vanity', 'q': 'h_bidet', 'z': 'h_shelf_supply', 'm': 'h_desk', 'A': 'h_almond', '%': 'h_hedge',
-    '+': 'h_fence', 'H': 'h_bush', '"': 'h_lawn', '-': 'h_gravel', 'x': 'h_path', '$': 'h_gate', 'B': 'h_wall_brick',
-    'b': 'h_bleachers', 'c': 'h_folding_chair', 'o': 'h_throne'
-  };
-  delete HL.J2;
+    'e': 'h_wall_green', 'j': 'h_toilet_auto',
+    'w': 'h_vanity', 'q': 'h_bidet', 'z': 'h_shelf_supply', 'A': 'h_almond', '%': 'h_hedge',
+    '+': 'h_fence', 'H': 'h_bush', '"': 'h_lawn', '-': 'h_gravel', 'x': 'h_path', '$': 'h_gate', 'B': 'h_wall_brick', '^': 'h_roof'
+  };   // NB: default-legend chars keep their engine meaning except # . _ : D h k F W M E I Q (house versions)
   function legend(extra) { var l = {}; Object.keys(HL).forEach(function (k) { l[k] = HL[k]; }); if (extra) Object.keys(extra).forEach(function (k) { l[k] = extra[k]; }); return l; }
 
   function cam(id, at, o) { o = o || {}; return { id: id, at: at, angle: o.angle != null ? o.angle : 90, sweep: o.sweep || 0, range: o.range || 72, fov: o.fov || 50, live: !!o.live, speed: o.speed || 0.6, prop: o.prop }; }
@@ -422,7 +420,7 @@
     g.rect(1, 5, 1, 2, 'v').rect(8, 5, 1, 2, 'v');
     g.set(8, 1, 'k');
     reg('house_trader_office', {
-      name: 'Trader\'s Office', tiles: g.rows(), ambient: 'hum', legend: { 'D': 'h_door', 'k': 'h_shelf_tall' }, tint: '#3a2a0a', tintAlpha: 0.12, dark: 0.3, playerLight: 40,
+      name: 'Trader\'s Office', tiles: g.rows(), ambient: 'hum', legend: { 'O': 'h_wall_gold', 'd': 'h_desk_gold' }, tint: '#3a2a0a', tintAlpha: 0.12, dark: 0.3, playerLight: 40,
       lights: [{ at: [4, 3], r: 70 }],
       spawns: { from_red_hall: [4, 7] },
       marks: { desk_chair: [5, 1], guest_chair: [4, 3], phone: [3, 2], couch_west: [2, 5], couch_east: [7, 5], closet: [1, 2] },
@@ -458,7 +456,7 @@
     g.set(41, 1, 'D');
     g.rect(0, 2, 1, H - 2, '+').rect(W - 1, 2, 1, H - 2, '+').rect(0, H - 1, W, 1, '+');
     // house block (brick shell; interior is the foyer/hall maps)
-    g.rect(8, 11, 44, 11, 'B');
+    g.rect(8, 11, 44, 11, 'B').rect(8, 11, 44, 9, '^');   // slate roof, brick south face
     for (var wx = 12; wx < 50; wx += 5) g.set(wx, 21, 'W');   // ground-floor windows on the south face
     g.set(12, 21, 'B').set(13, 21, 'J').set(14, 21, 'J');     // jewel door (foyer)
     // garden north of the house
