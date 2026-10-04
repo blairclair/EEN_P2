@@ -30,6 +30,7 @@
  *     caged NPC here, the bars draw over it), contestant_1..contestant_7 [17,4]..[17,10] (contestants'
  *     bench, facing west), jury_box [6,5] (in front of the box rail), host_floor [10,5], tb_left [7,12], tb_right [13,12],
  *     camera_left [6,12], camera_right [15,12].
+ *   Jury box: mannequins in columns x=2 and x=4, rows y=3..8 (aisles x=1/3, gate at [5,8]).
  *   Mannequin heads: remove 'jury_7' and re-add it at the same tile ({ id:'jury_7', at:[...], prop:'gx_mannequin', headless:true }.
  *
  * house_gym_vr (ch04): seven beds in a tight circle round tool_tray [11,9]. objects bed_1..bed_7,
@@ -60,7 +61,8 @@
  *   at desk_clerk [10,4]), sign [3,2], line_start [10,9].
  * dpe_hq_cells (24x8): exit to_dpe_hq_lobby (west). Spawn from_dpe_hq_lobby [1,5]. Cells along the north;
  *   marks cell_1..cell_6 (inside each cell), cell_luna (the smallest), guard [20,6], corridor [12,6].
- *   Cell fronts are solid bars (no walk-in): put people in a cell by placing them at its mark (goRoom at: / npc at:). Objects tv_1..7, guard_desk, cam_1..3.
+ *   Cell fronts are solid bars; each cell has one walkable door tile in the bars, right below its mark.
+ *   Marks cell_1..cell_6 + cell_luna. Objects tv_1..7, guard_desk, cam_1..3.
  * dpe_hq_studio (22x14, ch09 interview): exit to_dpe_hq_lobby (south). Spawn from_dpe_hq_lobby [11,12].
  *   Marks chair_guest [9,5], chair_host [13,5], table [11,5], plinth [11,2], audience [11,10],
  *   wings [2,6], camera [11,8].
@@ -165,7 +167,7 @@
     gx_stairs: { draw: function (g, x, y) { px(g, x, y, T, T, '#2a1e14'); for (var i = 0; i < 4; i++) { px(g, x + 1, y + i * 4, 14, 3, '#5a4228'); px(g, x + 1, y + i * 4, 14, 1, '#7a5a38'); } } },
     gx_pew: { draw: function (g, x, y) { px(g, x, y, T, T, '#221e2c'); px(g, x + 1, y + 1, 12, 14, '#4a2a1e'); px(g, x + 1, y + 1, 12, 1, '#6a4028'); px(g, x + 1, y + 15, 12, 1, '#1a100a'); } },
     gx_pew_back: { solid: true, draw: function (g, x, y) { px(g, x, y, T, T, '#221e2c'); px(g, x, y, 6, T, '#3a2016'); px(g, x, y, 2, T, '#5a3420'); px(g, x + 6, y, 1, T, '#120a06'); } },
-    gx_jury_floor: { solid: true, draw: function (g, x, y) { px(g, x, y, T, T, '#2a1a22'); px(g, x, y + 15, T, 1, '#1a1016'); px(g, x + 2, y + 6, 12, 1, '#3a2430'); } },
+    gx_jury_floor: { solid: false, draw: function (g, x, y) { px(g, x, y, T, T, '#2a1a22'); px(g, x, y + 15, T, 1, '#1a1016'); px(g, x + 2, y + 6, 12, 1, '#3a2430'); } },
     gx_jury_rail: { solid: true, draw: function (g, x, y) { px(g, x, y, T, T, '#221e2c'); px(g, x + 2, y, 5, T, '#5a3a22'); px(g, x + 2, y, 5, 1, GOLD); px(g, x + 3, y, 1, T, '#7a5232'); px(g, x + 7, y, 1, T, '#120a06'); } },
     gx_ballfloor: { draw: function (g, x, y, info) {
       px(g, x, y, T, T, (info.tx + info.ty) % 2 ? '#1a1622' : '#2a2034');
@@ -190,6 +192,7 @@
       tileDraw('gx_bluewall')(g, x, y, info); if (!info.face) return;
       px(g, x + 2, y + 3, 12, 13, '#8a9aaa'); px(g, x + 7, y + 3, 2, 13, '#5a6a7a'); px(g, x + 6, y + 1, 4, 1, '#e8c15a');
     } },
+    gx_celldoor: { draw: function (g, x, y) { px(g, x, y, T, T, '#3a3c42'); px(g, x, y, 2, T, '#9aa0aa'); px(g, x + 14, y, 2, T, '#9aa0aa'); px(g, x, y + 1, T, 1, '#6a6e76'); px(g, x + 2, y + 14, 12, 1, '#2a2c30'); } },
     gx_cellfloor: { color: '#3a3c42', color2: '#2e3036', pattern: 'tiles' },
     gx_studio: { draw: function (g, x, y, info) { px(g, x, y, T, T, (info.tx + info.ty) % 2 ? '#1c1830' : '#221c3a'); px(g, x, y, T, 1, '#2a2446'); } },
     gx_seats: { solid: true, anim: true, draw: function (g, x, y, info) { px(g, x, y, T, T, '#141020'); px(g, x, y + 10, T, 6, '#2a1830'); people(g, x, y - 1, info, false, 21); } },
@@ -239,6 +242,7 @@
   G.shared.registerProps({
     // 20-ft holoscreen; draws 11 tiles wide x 2 tall from its anchor (put the anchor on the wall's left end)
     gx_holoscreen: function (g, x, y, t, o) {
+      y -= 2 * T; // anchored on the first floor row (so it can be examined), drawn over the two wall rows above
       var d = (o && o.def) || {}, w = (d.wTiles || 11) * T, hgt = 30;
       px(g, x, y + 1, w, hgt, '#06040a'); px(g, x + 1, y + 2, w - 2, hgt - 2, '#160c22');
       var sweep = (t * 40) % (w + 40) - 20;
@@ -427,12 +431,12 @@
   (function () {
     var g = gymShell('m');
     g.rect(8, 2, 5, 1, 'j').rect(8, 3, 5, 1, 'J').set(7, 2, 'k').set(13, 2, 'k');
-    g.rect(1, 3, 4, 6, 'z').rect(5, 3, 1, 6, 'y');                 // jury box
+    g.rect(1, 3, 4, 6, 'z').rect(5, 3, 1, 6, 'y').set(5, 8, 'm');                 // jury box
     g.rect(17, 4, 1, 7, 'p').rect(18, 4, 1, 7, 'q');                // contestants' bench (faces west)
     g.rect(10, 8, 1, 5, 'r');                                       // red carpet: chairs -> Cage
     g.rect(10, 13, 1, 1, 'r');
     var objs = [
-      { id: 'holoscreen', at: [5, 0], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 11,
+      { id: 'holoscreen', at: [5, 2], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 11,
         examine: 'A twenty-foot holoscreen. Two empty portrait frames wait for faces. SAVE counters sit under each, blank as headstones.' },
       { id: 'judge_bench', at: [10, 3], examine: 'The judge\'s bench rises two storeys. Whoever sits up there looks down on everyone, which is the point.' },
       { id: 'mic', at: [10, 6], prop: 'mic', examine: 'A microphone on a stand, aimed up at the bench.' },
@@ -443,8 +447,8 @@
       { id: 'robocam_2', at: [15, 12], prop: 'gx_robocam', examine: 'Its lens follows you a half-second late.' }
     ];
     var n = 1;
-    for (var yy = 3; yy <= 7; yy += 2) for (var xx = 1; xx <= 4; xx++) {
-      objs.push({ id: 'jury_' + n, at: [xx, yy + (xx % 2 ? 0 : 1)], prop: 'gx_mannequin', examine: n === 1 ? 'The jury: painted mannequins in clown makeup with painted tears. Twelve of them, and none of them vote.' : 'A mannequin juror. Painted tears. Painted smile.' });
+    for (var yy = 3; yy <= 8; yy++) for (var xx = 2; xx <= 4; xx += 2) {
+      objs.push({ id: 'jury_' + n, at: [xx, yy], prop: 'gx_mannequin', examine: n === 1 ? 'The jury: painted mannequins in clown makeup with painted tears. Twelve of them, and none of them vote.' : 'A mannequin juror. Painted tears. Painted smile.' });
       n++;
     }
     reg('house_gym_courtroom', gymDef('The Carnival of Justice', g, {
@@ -558,13 +562,13 @@
     g.set(2, 4, 'S').set(29, 4, 'S');                                            // wing openings
     g.rect(1, 7, 30, 1, 'F').rect(15, 7, 2, 1, 'k');                             // stage front + stairs
     g.rect(8, 9, 16, 3, 'R');                                                    // robot camera banks (bottom 3 rows)
-    g.rect(1, 9, 7, 1, 'H').rect(7, 10, 1, 2, 'I').rect(1, 10, 6, 2, 'x');      // families' box
-    g.rect(24, 9, 7, 1, 'v').rect(24, 10, 1, 3, 'I').rect(25, 10, 6, 3, 'x');   // VIP box
+    g.rect(1, 9, 7, 1, 'H').rect(7, 10, 1, 2, 'I').rect(1, 10, 6, 2, 'x').set(4, 9, '_');      // families' box
+    g.rect(24, 9, 7, 1, 'v').rect(24, 10, 1, 3, 'I').rect(25, 10, 6, 3, 'x').set(27, 9, '_');   // VIP box
     g.rect(1, 12, 23, 1, 'A').rect(1, 13, 30, 5, 'A');                           // human seats (top rows)
     g.rect(15, 9, 2, 9, '^');                                                    // centre aisle
     g.rect(1, 19, 30, 1, 'X').rect(15, 19, 2, 1, '^');                           // chained prisoners' row
     var objs = [
-      { id: 'holoscreen', at: [10, 0], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 12, title: 'EXECUTION ENTERTAINMENT NETWORK', subtitle: 'LIVE • VOTE THE METHOD IN THE APP',
+      { id: 'holoscreen', at: [10, 2], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 12, title: 'EXECUTION ENTERTAINMENT NETWORK', subtitle: 'LIVE • VOTE THE METHOD IN THE APP',
         examine: 'The screen over the stage. EXECUTION ENTERTAINMENT NETWORK, in letters taller than a person.' },
       { id: 'gurney', at: [15, 4], prop: 'gx_gurney', examine: 'A gurney with leather straps. An IV stand beside it, the bag already hung.' },
       { id: 'gallows', at: [20, 4], prop: 'gx_gallows', solid: false, layer: -1, examine: 'A gallows. The trapdoor is painted with the network logo.' },
@@ -623,13 +627,14 @@
     for (var i = 0; i < CELLS.length; i++) {
       var x = CELLS[i][0], w = CELLS[i][1], end = x + w;
       if (end <= 22) c.rect(end, 2, 1, 3, '#');
+      c.set(x + w - 1, 4, 'e');                                  // the cell door (walkable; lock it with a chapter zone if needed)
       var luna = w === 1, nm = luna ? 'cell_luna' : 'cell_' + (i < 3 ? i + 1 : i);
       cobjs.push({ id: 'tv_' + (i + 1), at: [x, 2], prop: 'gx_bigtv', examine: luna ? 'A TV bolted at eye level, so close it fills the cell. It shows the poll. Your face. 16%.' : 'A small TV, playing the network.' });
       cmarks[nm] = [x + w - 1, 3];
     }
     cobjs.push(cam('cam_1', [3, 1]), cam('cam_2', [12, 1]), cam('cam_3', [19, 1]));
     cobjs.push({ id: 'guard_desk', at: [21, 6], prop: 'monitor', examine: 'A guard\'s monitor wall: every cell, every angle.' });
-    reg('dpe_hq_cells', simpleDef('DPE Headquarters: Holding Cells', c, { '#': 'gx_bluewall', 'c': 'gx_cellfloor' }, {
+    reg('dpe_hq_cells', simpleDef('DPE Headquarters: Holding Cells', c, { '#': 'gx_bluewall', 'c': 'gx_cellfloor', 'e': 'gx_celldoor' }, {
       ambient: 'hum', spawn: [1, 5], dark: 0.25, playerLight: 50,
       lights: [{ at: [6, 5], r: 60 }, { at: [17, 5], r: 60 }, { at: [12, 3], r: 30, flicker: true }],
       objects: cobjs,
@@ -645,7 +650,7 @@
       ambient: 'crowd', spawn: [11, 12], tint: '#3a1a4a', tintAlpha: 0.08, dark: 0.3, playerLight: 50,
       lights: [{ at: [11, 4], r: 90 }, { at: [11, 10], r: 80 }, { at: [3, 10], r: 50 }, { at: [19, 10], r: 50 }],
       objects: [
-        { id: 'holoscreen', at: [5, 0], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 12, title: 'FRIENDS & FAMILY', subtitle: 'A RIGHT TO LIFE SPECIAL' },
+        { id: 'holoscreen', at: [5, 2], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 12, title: 'FRIENDS & FAMILY', subtitle: 'A RIGHT TO LIFE SPECIAL' },
         { id: 'plinth', at: [11, 2], prop: 'gx_plinth', examine: 'A plinth hung with paper stars, like the ball. Somebody\'s idea of whimsy.' },
         { id: 'chair_guest', at: [9, 5], prop: 'gx_armchair', solid: false, color: '#7a3a5a', examine: 'The guest\'s armchair. Soft enough to sink in.' },
         { id: 'chair_host', at: [13, 5], prop: 'gx_armchair', solid: false, color: '#3a4a7a', examine: 'The host\'s armchair, angled to the camera.' },
