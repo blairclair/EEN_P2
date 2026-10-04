@@ -280,7 +280,7 @@
   }
   var road = {
     name: 'Outside the Fence', tiles: roadTiles(), legend: { Y: 'treeline', v: 'nightgrass', '=': 'nightroad' },
-    spawn: [2, 5], ambient: 'drone', dark: 0.8, playerLight: 44, tint: '#0a1030', tintAlpha: 0.2, vignette: 0.6, bg: '#020306',
+    spawn: [2, 5], ambient: 'drone', dark: 0.62, playerLight: 56, tint: '#0a1030', tintAlpha: 0.2, vignette: 0.6, bg: '#020306',
     lights: [{ at: [6, 3], r: 20, flicker: true }],
     npcs: [{ id: 'c15_isaiah', spec: 'isaiah_bare', at: [2, 6], facing: 'right', talk: [['isaiah_bare', 'I can\'t see the road. I can feel it, though. Asphalt. We\'re out.', 'fear']] }],
     objects: [
@@ -411,7 +411,7 @@
         ctx.loop(function (dt) {
           if (done) { if (ctx.t - doneT > 1.4) resolve({ success: true, flinches: flinches }); return; }
           nextKick -= dt;
-          if (nextKick <= 0) { kick = (Math.random() < 0.5 ? -1 : 1) * (1.2 + Math.random() * 1.4 + prog); nextKick = 0.7 + Math.random() * 1.1; flash = 0.3; ctx.sound('heartbeat'); }
+          if (nextKick <= 0) { kick = (Math.random() < 0.5 ? -1 : 1) * (0.8 + Math.random() * 0.9 + prog * 0.5) * (flinches >= 5 ? 0.5 : 1); nextKick = 0.7 + Math.random() * 1.1; flash = 0.3; ctx.sound('heartbeat'); }
           v += kick * dt * 3; kick *= Math.pow(0.02, dt);
           v += (Math.random() - 0.5) * dt * 2;
           var d = I.dir();
@@ -419,9 +419,10 @@
           v *= Math.pow(0.25, dt);
           x += v * dt;
           flash = Math.max(0, flash - dt);
-          if (Math.abs(x) < 0.28) prog += dt * 0.14;
+          if (Math.abs(x) < 0.28) prog += dt * 0.14; else if (flinches >= 5) prog += dt * 0.05; // after 5 flinches Annette pins the arm
+          if (ctx.t > 45) prog = 1; // (constraint: never strand a player in the finale)
           if (Math.abs(x) > 1) {
-            flinches++; prog = Math.max(0, prog - 0.18); x = 0; v = 0; kick = 0; ctx.sound('hit'); G.UI.flash('#e8323c', 250);
+            flinches++; prog = Math.max(0, prog - 0.08); x = 0; v = 0; kick = 0; ctx.sound('hit'); G.UI.flash('#e8323c', 250);
             msg = ['Hold STILL. Do you want me in an artery?', 'You flinch like a tourist.', 'Breathe, girl. Count to seven if it helps.'][flinches % 3]; msgT = ctx.t;
           }
           var stage = Math.min(2, Math.floor(prog * 3));
@@ -628,11 +629,12 @@
       while (!voted) {
         var v = await api.choice([
           '(Write ANNETTE.)',
-          '(Write ISAIAH.)',
+          { text: '(Write ISAIAH.)', if: '!ch15_triedIsaiah' },
           '(Hold the pencil. Think.)'
-        ], { autoPick: 0 });
+        ], { autoPick: 0, showDisabled: true });
         if (v === 0) voted = true;
         else if (v === 1) {
+          api.set('ch15_triedIsaiah', true);
           await api.narrate('The pencil touches the I. Your hand won\'t make the next stroke.');
           await api.think('I won\'t. Not him. Annette has to name him; she has no one else. If I name him too, he\'s the one in that chair beside me tonight.');
         } else {
