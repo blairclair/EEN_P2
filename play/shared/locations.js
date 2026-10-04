@@ -83,7 +83,8 @@
     'E': 'h_screen_wall', 'I': 'h_leader_wall', 'y': 'h_gold_carpet', 'Q': 'h_wall_white', 'g': 'h_green_floor',
     'e': 'h_wall_green', 'j': 'h_toilet_auto',
     'w': 'h_vanity', 'q': 'h_bidet', 'z': 'h_shelf_supply', 'A': 'h_almond', '%': 'h_hedge',
-    '+': 'h_fence', 'H': 'h_bush', '"': 'h_lawn', '-': 'h_gravel', 'x': 'h_path', '$': 'h_gate', 'B': 'h_wall_brick', '^': 'h_roof'
+    '+': 'h_fence', 'H': 'h_bush', '"': 'h_lawn', '-': 'h_gravel', 'x': 'h_path', '$': 'h_gate', 'B': 'h_wall_brick', '^': 'h_roof',
+    'P': 'h_plant', 'L': 'h_lamp', 'c': 'h_chair'
   };   // NB: default-legend chars keep their engine meaning except # . _ : D h k F W M E I Q (house versions)
   function legend(extra) { var l = {}; Object.keys(HL).forEach(function (k) { l[k] = HL[k]; }); if (extra) Object.keys(extra).forEach(function (k) { l[k] = extra[k]; }); return l; }
 
@@ -456,7 +457,7 @@
     g.set(41, 1, 'D');
     g.rect(0, 2, 1, H - 2, '+').rect(W - 1, 2, 1, H - 2, '+').rect(0, H - 1, W, 1, '+');
     // house block (brick shell; interior is the foyer/hall maps)
-    g.rect(8, 11, 44, 11, 'B').rect(8, 11, 44, 9, '^');   // slate roof, brick south face
+    g.rect(8, 11, 44, 11, 'B').rect(8, 11, 44, 10, '^');   // slate roof, brick south face
     for (var wx = 12; wx < 50; wx += 5) g.set(wx, 21, 'W');   // ground-floor windows on the south face
     g.set(12, 21, 'B').set(13, 21, 'J').set(14, 21, 'J');     // jewel door (foyer)
     // garden north of the house

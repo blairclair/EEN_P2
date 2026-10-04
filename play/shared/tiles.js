@@ -137,6 +137,10 @@
       px(g, x, y, T, T, '#23202a'); for (var i = 0; i < 4; i++) { var o = (i + info.ty) % 2 ? 0 : 4; px(g, x, y + i * 4 + 3, T, 1, '#16141c'); px(g, x + o, y + i * 4, 1, 3, '#16141c'); px(g, x + o + 8, y + i * 4, 1, 3, '#16141c'); }
       if (info.r > 0.85) px(g, x + 5, y + 5, 3, 2, '#2e2a36');
     } },
+    // engine furniture re-based onto house parquet (the engine versions sit on its lighter 'floor')
+    h_plant: { solid: true, base: 'h_parquet', draw: function (g, x, y, i) { G.registry.tiles.plant.draw(g, x, y, i); } },
+    h_lamp: { solid: true, base: 'h_parquet', draw: function (g, x, y, i) { G.registry.tiles.lamp.draw(g, x, y, i); } },
+    h_chair: { base: 'h_parquet', draw: function (g, x, y) { px(g, x + 4, y + 2, 8, 3, '#3a1e14'); px(g, x + 4, y + 2, 8, 1, '#c9a24a'); px(g, x + 4, y + 5, 8, 6, '#6a1a2a'); px(g, x + 5, y + 6, 6, 4, '#8a2a3a'); px(g, x + 4, y + 11, 1, 3, '#2a140c'); px(g, x + 11, y + 11, 1, 3, '#2a140c'); } },
     /* ------------------------------------------------------------- floors */
     h_parquet: { draw: function (g, x, y, info) {
       px(g, x, y, T, T, '#3a2618');

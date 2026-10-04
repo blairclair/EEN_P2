@@ -254,24 +254,27 @@
     return { legH: legH, torsoH: torsoH, headH: headH, tw: tw, legTop: legTop, torsoTop: torsoTop, headTop: headTop, feet: feet };
   }
 
+  // Canon: ALL True Believer / Council masks are GOLD. Animals differ by silhouette (ears, trunk, mane,
+  // antlers...) in darker gold, so they read at gameplay scale against black hoods.
+  var GOLD_L = '#f0cc5a', GOLD_DD = '#6a4a10';
   var MASK = {
-    // features drawn on the face (sprite: head box hx..hx+7, hy..hy+hh-1; eyeY)
     plain: { c: GOLD },
-    elephant: { c: '#b8b0a0', ears: '#9a9284', trunk: true },
+    elephant: { c: GOLD, ears: GOLD_D, trunk: true },
     lion: { c: GOLD, mane: '#c86a1a' },
-    hippo: { c: '#9a8ca0', snout: '#b8aabc', earsSmall: true },
-    boar: { c: '#8a5a3a', snout: '#c08a6a', tusks: true },
-    dog: { c: GOLD, ears: GOLD_D, floppy: true },
-    deer: { c: '#c89a5a', antlers: '#e8d8b0' },
-    turtle: { c: '#6a8a4a', shell: '#4a6a32' },
-    frog: { c: '#5aa04a', bulge: true },
-    mouse: { c: '#a8a8b0', round: '#c8a0a8' },
-    tiger: { c: '#e88a2a', stripes: '#1a1010' },
-    bear: { c: '#6a4a2a', round: '#5a3a1a' },
-    hyena: { c: '#b89a6a', spots: '#4a3a2a' },
-    vulture: { c: '#3a3036', beak: '#e8d8a0' },
-    cat: { c: '#e8e4dc', catEars: '#e8e4dc' }
+    hippo: { c: GOLD, snout: GOLD_L, earsSmall: true },
+    boar: { c: GOLD, snout: GOLD_L, tusks: true },
+    dog: { c: GOLD, ears: GOLD_DD, floppy: true },
+    deer: { c: GOLD, antlers: GOLD_L },
+    turtle: { c: GOLD, shell: GOLD_DD },
+    frog: { c: GOLD, bulge: true },
+    mouse: { c: GOLD, round: GOLD_D },
+    tiger: { c: GOLD, stripes: '#1a1010' },
+    bear: { c: GOLD, round: GOLD_DD },
+    hyena: { c: GOLD, spots: GOLD_DD },
+    vulture: { c: GOLD, beak: GOLD_L },
+    cat: { c: '#e8e4dc', catEars: '#e8e4dc' }       // the ch01 guide: NOT a True Believer, white mask
   };
+
 
   function P(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
 
@@ -293,17 +296,17 @@
           // mask face plate
           if (front) { P(g, hx + 1, hy + 1, 6, hh - 2, mk.c); P(g, hx + 2, eyeY, 1, 1, '#000'); P(g, hx + 5, eyeY, 1, 1, '#000'); P(g, hx + 6, hy + 1, 1, hh - 2, U.shade(mk.c, -0.25)); }
           else { P(g, hx + 3, hy + 1, 5, hh - 2, mk.c); P(g, hx + 5, eyeY, 1, 1, '#000'); P(g, hx + 8, eyeY + 1, 1, 2, mk.c); }
-          if (mk.trunk) { if (front) P(g, hx + 3, eyeY + 1, 2, hh - 2, U.shade(mk.c, -0.12)); else P(g, hx + 8, eyeY + 1, 1, 5, U.shade(mk.c, -0.12)); }
-          if (mk.snout) { if (front) P(g, hx + 2, eyeY + 2, 4, 2, mk.snout); else P(g, hx + 7, eyeY + 1, 2, 2, mk.snout); }
+          if (mk.trunk) { if (front) { P(g, hx + 3, eyeY + 1, 2, hh - 1, GOLD_D); P(g, hx + 2, hy + hh + 1, 2, 1, GOLD_D); } else { P(g, hx + 8, eyeY + 1, 2, 4, GOLD_D); P(g, hx + 9, eyeY + 4, 1, 3, GOLD_D); } }
+          if (mk.snout) { if (front) { P(g, hx + 2, eyeY + 2, 4, 2, mk.snout); P(g, hx + 3, eyeY + 2, 1, 1, GOLD_DD); P(g, hx + 4, eyeY + 2, 1, 1, GOLD_DD); } else P(g, hx + 7, eyeY + 1, 2, 2, mk.snout); }
           if (mk.tusks) { if (front) { P(g, hx + 1, eyeY + 3, 1, 1, '#fff'); P(g, hx + 6, eyeY + 3, 1, 1, '#fff'); } else P(g, hx + 8, eyeY + 3, 1, 1, '#fff'); }
           if (mk.beak) { if (front) P(g, hx + 3, eyeY + 1, 2, 3, mk.beak); else P(g, hx + 8, eyeY + 1, 2, 2, mk.beak); }
-          if (mk.stripes) { P(g, hx + 2, hy + 1, 1, 2, mk.stripes); P(g, hx + 5, hy + 1, 1, 2, mk.stripes); }
+          if (mk.stripes) { P(g, hx + 1, hy + 1, 1, 3, mk.stripes); P(g, hx + 3, hy + 1, 2, 1, mk.stripes); P(g, hx + 6, hy + 1, 1, 3, mk.stripes); P(g, hx + 1, eyeY + 2, 2, 1, mk.stripes); }
           if (mk.spots) { P(g, hx + 2, hy + 2, 1, 1, mk.spots); P(g, hx + 5, eyeY + 2, 1, 1, mk.spots); }
           if (mk.shell) P(g, hx + 2, hy + 1, 4, 2, mk.shell);
         }
         // features visible from every side
-        if (mk.ears) { if (!side) { P(g, hx - 2, hy + 2, 2, 5, mk.ears); P(g, hx + 8, hy + 2, 2, 5, mk.ears); } else P(g, hx + 1, hy + 2, 3, 5, mk.ears); }
-        if (mk.floppy) { P(g, hx - 1, hy + 2, 1, 5, mk.ears); P(g, hx + 8, hy + 2, 1, 5, mk.ears); }
+        if (mk.ears && !mk.floppy) { if (!side) { P(g, hx - 3, hy + 1, 3, 6, mk.ears); P(g, hx + 8, hy + 1, 3, 6, mk.ears); } else P(g, hx + 1, hy + 1, 3, 6, mk.ears); }
+        if (mk.floppy) { P(g, hx - 1, hy, 2, 6, mk.ears); P(g, hx + 7, hy, 2, 6, mk.ears); if (front) P(g, hx + 3, eyeY + 2, 2, 1, '#1a1010'); }
         if (mk.mane) { P(g, hx - 1, hy - 2, 10, 2, mk.mane); P(g, hx - 2, hy, 2, hh, mk.mane); P(g, hx + 8, hy, 2, hh, mk.mane); if (!back) P(g, hx, hy + hh - 1, 8, 1, mk.mane); else P(g, hx, hy, 8, hh, mk.mane); }
         if (mk.antlers) { P(g, hx + 1, hy - 4, 1, 4, mk.antlers); P(g, hx, hy - 4, 1, 1, mk.antlers); P(g, hx + 6, hy - 4, 1, 4, mk.antlers); P(g, hx + 7, hy - 4, 1, 1, mk.antlers); P(g, hx + 2, hy - 3, 1, 1, mk.antlers); P(g, hx + 5, hy - 3, 1, 1, mk.antlers); }
         if (mk.earsSmall) { P(g, hx + 1, hy - 1, 2, 1, mk.c); P(g, hx + 5, hy - 1, 2, 1, mk.c); }
@@ -368,8 +371,8 @@
         P(g, lx, ey - 1, 4, 3, '#000'); P(g, rx, ey - 1, 4, 3, '#000');
         P(g, lx + 1, ey, 1, 1, '#4a3a2a'); P(g, rx + 1, ey, 1, 1, '#4a3a2a');
         P(g, Math.round(cx) - 2, my, 4, 1, cD);
-        if (mk.trunk) { P(g, Math.round(cx) - 2, ey + 3, 4, 14, U.shade(c, -0.1)); P(g, Math.round(cx) - 2, ey + 6, 4, 1, cD); P(g, Math.round(cx) - 2, ey + 10, 4, 1, cD); P(g, Math.round(cx) - 1, ey + 16, 3, 2, cD); }
-        if (mk.ears) { P(g, hx - 7, hy + 2, 8, 16, mk.ears); P(g, hx + hw - 1, hy + 2, 8, 16, mk.ears); P(g, hx - 5, hy + 5, 4, 9, U.shade(mk.ears, -0.15)); P(g, hx + hw + 1, hy + 5, 4, 9, U.shade(mk.ears, -0.15)); }
+        if (mk.trunk) { P(g, Math.round(cx) - 2, ey + 3, 4, 14, GOLD_D); P(g, Math.round(cx) - 2, ey + 6, 4, 1, cD); P(g, Math.round(cx) - 2, ey + 10, 4, 1, cD); P(g, Math.round(cx) - 1, ey + 16, 3, 2, cD); }
+        if (mk.ears && !mk.floppy) { P(g, hx - 7, hy + 2, 8, 16, mk.ears); P(g, hx + hw - 1, hy + 2, 8, 16, mk.ears); P(g, hx - 5, hy + 5, 4, 9, U.shade(mk.ears, -0.15)); P(g, hx + hw + 1, hy + 5, 4, 9, U.shade(mk.ears, -0.15)); }
         if (mk.floppy) { P(g, hx - 3, hy + 2, 4, 14, mk.ears); P(g, hx + hw - 1, hy + 2, 4, 14, mk.ears); P(g, Math.round(cx) - 2, ey + 3, 4, 3, '#1a1010'); }
         if (mk.mane) { for (var a = 0; a < 26; a++) { var ang = a / 26 * Math.PI * 2, rr = 13 + (a % 2) * 2; P(g, Math.round(cx + Math.cos(ang) * rr) - 2, Math.round(hy + hh / 2 + Math.sin(ang) * rr) - 2, 4, 4, a % 2 ? mk.mane : U.shade(mk.mane, -0.2)); } P(g, Math.round(cx) - 2, ey + 4, 4, 2, '#3a1a0a'); }
         if (mk.snout) { P(g, Math.round(cx) - 5, ey + 4, 10, 6, mk.snout); P(g, Math.round(cx) - 3, ey + 6, 2, 2, cD); P(g, Math.round(cx) + 1, ey + 6, 2, 2, cD); }
