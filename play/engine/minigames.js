@@ -268,10 +268,10 @@
    * result: {success, hits, misses, score}
    * ===================================================================== */
   G.registerMinigame('qte', {
-    autoSolve: function (p) { var r = p.rounds || 3; return { success: true, hits: p.need || r, misses: 0, score: 100 }; },
+    autoSolve: function (p) { var r = p.rounds || 3; return { success: true, hits: p.need || Math.max(1, Math.round(r * 2 / 3)), misses: 0, score: 100 }; },
     start: function (ctx) {
       var p = ctx.params, mode = p.mode || 'timing';
-      var rounds = p.rounds || 3, need = p.need != null ? p.need : Math.ceil(rounds * 0.67);
+      var rounds = p.rounds || 3, need = p.need != null ? p.need : Math.max(1, Math.round(rounds * 2 / 3));
       var hits = 0, misses = 0, round = 0, state = 'ready', stT = 0, msg = '', msgC = '#fff';
       var pos = 0, vel = 0.9 * (p.speed || 1), zone = p.zone || 0.16, zx = 0.5;
       var seq = [], seqI = 0, seqT = 0;

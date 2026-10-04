@@ -45,8 +45,10 @@
     if (opts.restoreFlags) st.flags = U.copy(opts.restoreFlags);
     // isolated test runs: fill in cross-chapter defaults the chapter declared
     if (def.testDefaults) Object.keys(def.testDefaults).forEach(function (k) { if (st.flags[k] === undefined && (opts.isolated || G.auto)) st.flags[k] = U.copy(def.testDefaults[k]); });
+    // canon defaults (manifest game.flagDefaults) for any key still undefined; covers New Game, Chapter Select, every start
+    if (st.flags.m_audience == null && st.flags.approval != null) st.flags.m_audience = st.flags.approval; // old saves
+    G.applyFlagDefaults(st.flags);
     // audience meter: m_audience is the source of truth (migrate the deprecated `approval` alias)
-    if (st.flags.m_audience == null && st.flags.approval != null) st.flags.m_audience = st.flags.approval;
     if (st.flags.m_audience != null) st.flags.approval = st.flags.m_audience;
     G.Script.meterSynced = st.flags.m_audience != null ? st.flags.m_audience : null;
     G.UI.setApproval(G.Script.meterValue(), { instant: true, show: false });

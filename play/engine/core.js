@@ -264,6 +264,15 @@
     list: function () { return Object.keys(sharedMaps); }
   };
 
+  /** Canon defaults for cross-chapter flags (manifest game.flagDefaults). */
+  G.flagDefaults = function () { return (G.manifest.game && G.manifest.game.flagDefaults) || {}; };
+  /** Fill every currently-undefined key from flagDefaults (never overwrites). */
+  G.applyFlagDefaults = function (flags) {
+    var d = G.flagDefaults();
+    Object.keys(d).forEach(function (k) { if (flags[k] === undefined) flags[k] = JSON.parse(JSON.stringify(d[k])); });
+    return flags;
+  };
+
   /** Ordered list of manifest chapters (only those that registered). */
   G.chapterList = function (includeHidden) {
     return (G.manifest.chapters || []).filter(function (c) {

@@ -419,6 +419,13 @@ never resolve (they are abandoned silently).
   canon flag list if the orchestrator provides one (`canon/`). Always read with a default:
   `api.get('votedFor', 'carol')`, and declare test defaults in `testDefaults` so `?chapter=chNN` works alone.
 - **Chapter-local flags**: `chNN_` prefix (`ch05_talkedKessie`). Never read another chapter's local flags.
+- **Canon defaults: `G.manifest.game.flagDefaults`** (set by the orchestrator in `chapters/manifest.js`), currently
+  `m_audience 40, m_delphin 15, m_isaiah 30, m_kessie 25, m_annette 40, m_waverly 60, m_trader_insight 0`.
+  - They are filled in for every key that is still `undefined` at every chapter start: New Game, Continue, Chapter Select, `?chapter=`, and each next chapter.
+  - Existing values are never overwritten.
+  - In isolated tests a chapter's `testDefaults` are applied first, so they win.
+  - Increments on an undefined key use the default as their base, so `api.add('m_waverly', -5)` gives 55, not -5. The same goes for `api.add`, `{add:{...}}`, `set:{k:'+N'}` and `api.rel` (when its flag has a default).
+  - Only chapter-local flags need `api.get(k, default)`; registry meters are always defined.
 - Relationships: `api.rel(name, delta)` → `rel<Name>` (e.g. `relDelphin`), an integer.
 - Flag values must be JSON-serialisable (no functions).
 - "Continue" restarts the current chapter from its start with the flags it started with.
@@ -623,3 +630,6 @@ Changes after the API freeze. All are backwards compatible.
   - Changed: the HUD audience meter is bound to flag **`m_audience`** (single source of truth). `api.approval(v)` and `api.approvalAdd(d)` read and write it, and `api.approval('+5')` string deltas, `api.approval(true)` and the alias `api.audience` were added. The `{audience: v}` data-script step was added. Direct flag writes are synced to the HUD every frame. `approval` stays as a deprecated alias kept equal to `m_audience`, and old saves with only `approval` are migrated at chapter start.
   - Fixed: interacting with an NPC on the adjacent tile failed unless the player stood near the far edge of its own tile. NPCs on the faced tile are now always reachable.
   - Fixed: `World.locate` could drop a map from the autoplay target search after a cross-chapter `goRoom('chNN:room')`.
+  - Fixed: the `qte` default `need` (when omitted) is now round(rounds*2/3), i.e. 2 of 3, instead of 3 of 3.
+- **2026-10-04 (c)**
+  - Added: `G.manifest.game.flagDefaults` (canon meter defaults). They fill undefined flags at every chapter start (New Game, Continue, Chapter Select, `?chapter=`, each next chapter) without overwriting. `api.add`, `{add}` and `set` `'+N'` on an undefined key now start from the default instead of 0. Also added `G.flagDefaults()` and `G.applyFlagDefaults(flags)`. The audience meter with no value falls back to `flagDefaults.m_audience` (then 50). `tools/new-chapter.js` preserves the key.

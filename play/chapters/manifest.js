@@ -8,6 +8,7 @@
  * ========================================================================= */
 G.manifest = {
   "game": {
+    "flagDefaults": { "m_audience": 40, "m_delphin": 15, "m_isaiah": 30, "m_kessie": 25, "m_annette": 40, "m_waverly": 60, "m_trader_insight": 0 },
     "title": "RIGHT TO LIFE",
     "subtitle": "the nation decides who deserves to live",
     "network": "CH 1 • LIVE",
@@ -23,7 +24,7 @@ G.manifest = {
       "Built in parallel by many hands"
     ]
   },
-  "shared": ["shared/tiles.js", "shared/cast.js", "shared/locations.js"],
+  "shared": ["shared/tiles.js", "shared/cast.js", "shared/locations.js", "shared/loc_upstairs.js", "shared/loc_gym_offsite.js"],
   "chapters": [
     { "id": "ch00", "number": 0, "title": "Rehearsal", "hidden": true, "files": ["chapter.js"] },
     { "id": "ch01", "number": 1, "title": "One Day, But Not Today", "files": ["chapter.js"] },

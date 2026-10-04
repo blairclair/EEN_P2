@@ -74,14 +74,21 @@
     var f = flags();
     Object.keys(obj).forEach(function (k) {
       var v = obj[k];
-      if (typeof v === 'string' && /^[+-]\d+(\.\d+)?$/.test(v)) f[k] = (+f[k] || 0) + parseFloat(v);
+      if (typeof v === 'string' && /^[+-]\d+(\.\d+)?$/.test(v)) f[k] = S.numBase(k) + parseFloat(v);
       else f[k] = v;
     });
   };
   S.applyAdd = function (obj) {
     if (!obj) return;
     var f = flags();
-    Object.keys(obj).forEach(function (k) { f[k] = (+f[k] || 0) + obj[k]; });
+    Object.keys(obj).forEach(function (k) { f[k] = S.numBase(k) + obj[k]; });
+  };
+  /** Numeric base for counters: the flag, else G.manifest.game.flagDefaults[k], else 0. */
+  S.numBase = function (k) {
+    var f = flags();
+    if (f[k] !== undefined && f[k] !== null) return +f[k] || 0;
+    var d = G.flagDefaults()[k];
+    return d !== undefined ? (+d || 0) : 0;
   };
 
   /* ---------------- audience meter (flags.m_audience) ---------------- */
@@ -91,7 +98,8 @@
     var f = G.Game.state.flags;
     if (f.m_audience != null) return f.m_audience;
     if (f.approval != null) return f.approval;
-    return 50;
+    var d = G.flagDefaults().m_audience;
+    return d != null ? d : 50;
   };
   /** Called every frame: keeps HUD, m_audience and the deprecated `approval` alias consistent
    *  even when chapters write the flags directly (api.set('m_audience', 70)). */
@@ -371,7 +379,7 @@
     /* ----- flags ----- */
     api.get = function (k, def) { var v = G.Game.state.flags[k]; return v === undefined ? def : v; };
     api.set = function (k, v) { if (typeof k === 'object') S.applySet(k); else G.Game.state.flags[k] = v === undefined ? true : v; };
-    api.add = function (k, n) { var f = G.Game.state.flags; f[k] = (+f[k] || 0) + (n == null ? 1 : n); return f[k]; };
+    api.add = function (k, n) { var f = G.Game.state.flags; f[k] = S.numBase(k) + (n == null ? 1 : n); return f[k]; };
     api.has = function (k) { return !!G.Game.state.flags[k]; };
     api.check = S.check;
     /** Relationship: api.rel('delphin', +1) -> flags.relDelphin; api.rel('delphin') reads. */
