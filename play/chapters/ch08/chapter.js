@@ -110,7 +110,7 @@
         e.remove = (e.remove || []).concat(ids);
         e.exits = (e.exits || []).concat(ids.map(function (x) {
           var ex = G.shared.exit(id, x, { locked: lock[x].locked, lockedText: lock[x].lockedText });
-          if (lock[x].toAt) ex.toAt = lock[x].toAt;
+          if (lock[x].toAt) { ex.toAt = lock[x].toAt; delete ex.run; }  // upstairs exits resolve toAt in a run() hook
           if (!ex.toAt && ex.to && G.shared.at) { var sp = G.shared.at(ex.to, 'from_' + String(id).replace(/^house_/, '')); if (sp) ex.toAt = sp; }
           return ex;
         }));
@@ -1137,7 +1137,7 @@
 
     // ---- B: out the front door ----
     var cpRed = [R.red, at(R.red, 'from_kitchen', [13, 4]), 'down'];
-    snHint(['THE FOYER CAMERA FLASHES', 'Someone watches it live. Time its sweep.', 'The jewel door is at the south wall.'], 10);
+    snHint(['THE FOYER CAMERA FLASHES', 'Someone watches it live. Its reach is short:', 'hug the far walls to the jewel door (south).'], 10);
     await sneak(api, {
       objective: 'Go out the front door.',
       done: function () { return api.room() === R.foyer || api.room() === R.grounds; },

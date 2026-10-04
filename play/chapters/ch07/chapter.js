@@ -570,14 +570,18 @@
       zones: [{ id: 'ch07_mymat', at: MAT(4), w: 1, h: 1 }]
     }, fbSandbags);
 
-    var holo = { id: 'ch07_holo', at: [5, 0], prop: 'gx_holoscreen', solid: false, layer: -1, wTiles: 11,
+    // take positions from the shared fixtures we replace, so later moves in shared/ carry over
+    var ctBase = G.shared.has(CT) ? G.shared.map(CT) : { objects: [] };
+    function sharedAt(id, fb) { var o = (ctBase.objects || []).filter(function (e) { return e.id === id; })[0]; return o ? o.at.slice() : fb; }
+    var holoSrc = (ctBase.objects || []).filter(function (e) { return e.id === 'holoscreen'; })[0] || {};
+    var holo = { id: 'ch07_holo', at: sharedAt('holoscreen', [5, 2]), prop: 'gx_holoscreen', solid: !!holoSrc.solid, layer: holoSrc.layer != null ? holoSrc.layer : -1, wTiles: holoSrc.wTiles || 11,
       left: function () { return HOLO.l; }, right: function () { return HOLO.r; },
       leftVotes: function () { return HOLO.lv; }, rightVotes: function () { return HOLO.rv; },
       examine: [{ think: 'Carol and Annette, twenty feet tall. Two SAVE counters underneath, blank as headstones.' }] };
     m[CT] = room(CT, {
       remove: G.shared.has(CT) ? ['holoscreen', 'jury_7', 'to_red_hall'] : ['to_red_hall'],
       exits: [lockedExit(CT, 'to_red_hall', always, noLeave, [0, 9])],
-      objects: G.shared.has(CT) ? [holo, { id: 'jury_7', at: [3, 6], prop: 'gx_mannequin', headless: true, examine: [{ think: 'One juror has lost its head. It rolled under the jury rail. Nobody has picked it up.' }] }] : []
+      objects: G.shared.has(CT) ? [holo, { id: 'jury_7', at: sharedAt('jury_7', [3, 6]), prop: 'gx_mannequin', headless: true, examine: [{ think: 'One juror has lost its head. It rolled under the jury rail. Nobody has picked it up.' }] }] : []
     }, fbCourt);
 
     m[R.redHall] = room(R.redHall, {}, ph('The Red Hall', 42, 6, [13, 5], 'to_kitchen', R.kitchen));
