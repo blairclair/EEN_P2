@@ -185,7 +185,7 @@ Non-`anim` tiles are cached, so don't use `info.t` unless `anim: true`.
 { id: 'x', at: [1,1], draw: function (g, x, y, t, obj) {...} }   // inline drawing
 ```
 `solid` defaults to true when there is a prop (false for `note`, `key`, `sparkle`). `layer` can be -1 (behind actors),
-0 (normal) or 1 (in front). Objects are interacted with by facing them, or by standing on them when not solid.
+0 (normal) or 1 (in front). Objects are interacted with by facing them (the adjacent tile in the facing direction, so wall-row objects like windows or posters work from anywhere in the tile below), or by standing on them when not solid. **If several interactables compete** (same tile, or faced tile vs standing tile), E picks: 1) one the chapter is waiting on (`waitForInteract`/`waitForTalk`) or has an `api.onInteract` handler for, 2) a chapter-added or `patch`ed entity, 3) a shared base fixture; ties go to the faced tile, then the most recently added. In `?dev=1`/`?auto=1` a warning lists interactables that share a tile (`G.testState.warnings`, printed by the smoke test).
 `thought: true` makes a plain-string examine render as inner monologue.
 
 **Built-in props:** `note letter camera tvset phone box cup teacup mic gavel photo poster spotlight flowers bag key
@@ -657,3 +657,6 @@ Changes after the API freeze. All are backwards compatible.
 - **2026-10-04 (j)**
   - Fixed: entities whose behaviour came only from `api.onInteract(id, fn)` were not interactable by keyboard (no marker, E did nothing), because `W.isInteractable` only checked the def. Autoplay hid this. Overrides now count, and `onInteract(id, null)` disables (reported by ch06).
   - Changed (bug fix): `api.lockPlayer()` is idempotent (a flag, not a counter), so nested or unbalanced locks no longer leave the player frozen; one `api.unlockPlayer()` always releases. The lock still persists across `goRoom` and is reset at every chapter start. Locks leaked by talk/examine/zone handlers are released with a warning. Added `api.isPlayerLocked()`.
+- **2026-10-04 (k)**
+  - Fixed: objects in a wall row (windows, posters, wall cameras) were intermittently unreachable with real keys. The 11px facing reach floored back into the player's own row depending on where the player stopped. Facing now also tests the adjacent tile in the facing direction (reported via real-keypress passes).
+  - Added: interaction priority when entities compete (waited-on/overridden > chapter-added/patched > shared fixture > faced tile > most recent), and a dev/test warning for interactables sharing a tile. Shared-map copies mark base entities `_shared` (and `patch`ed ones `_patched`) for this. These fields are internal.

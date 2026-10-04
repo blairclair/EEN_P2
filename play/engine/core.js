@@ -249,6 +249,8 @@
       var base = sharedMaps[name];
       if (!base) { G.reportError(new Error('G.shared.map: no shared map "' + name + '" (check shared/ files and manifest.shared)'), 'shared'); base = { tiles: ['###', '#@#', '###'] }; }
       var m = cloneDef(base);
+      // mark base entities so the engine can prefer chapter-added/patched ones when several share a tile
+      ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { (m[k] || []).forEach(function (e) { e._shared = true; }); });
       ext = ext || {};
       // order: 1) remove shared entities by id, 2) append/override ext fields, 3) patch by id
       if (ext.remove) ['npcs', 'objects', 'zones', 'exits'].forEach(function (k) { if (m[k]) m[k] = m[k].filter(function (e) { return ext.remove.indexOf(e.id) < 0; }); });
@@ -265,6 +267,7 @@
         if (!hit) { G.warn('G.shared.map("' + name + '"): patch target "' + id + '" not found'); G.log('[warn] shared patch: no entity "' + id + '" in ' + name); return; }
         var fields = cloneDef(ext.patch[id]);
         Object.keys(fields).forEach(function (f) { hit[f] = fields[f]; });
+        hit._patched = true;
       });
       m.sharedFrom = name;
       return m;

@@ -40,7 +40,7 @@
     W.roomState = {}; W.room = null; W.active = false; W.npcs = []; W.objects = []; W.zones = []; W.exits = [];
     W.waiters = []; W.lockMove = 0; W.cam.follow = null; W.cam.pan = null; W.cam.shakeT = 0;
     W.player.spec = 'luna'; W.player.visible = true; W.player.dir = 'down'; W.player.speed = 72;
-    W.zoneInside = {};
+    W.zoneInside = {}; W.warnedTiles = {};
   };
   /** Record a runtime-added def, replacing any earlier def with the same id. */
   function pushAdded(st, def) { st.added = st.added.filter(function (a) { return a.id !== def.id; }); st.added.push(def); delete st.removed[def.id]; }
@@ -96,6 +96,7 @@
     W.zones.forEach(function (z) { if (inRect(at.x, at.y, z)) W.zoneInside[z.id] = true; });
     W.cam.pan = null; W.cam.follow = null;
     W.snapCamera();
+    try { W.warnSharedTiles(); } catch (e) { /* diagnostics only */ }
     return room;
   };
 
@@ -397,14 +398,52 @@
       if (near && d < bd) { best = n; bd = d; }
     });
     if (best) return best;
+    // Objects: the tile under the facing point, the ADJACENT tile in the facing direction (so wall-row
+    // objects work wherever the player stopped inside its tile), and the tile the player stands on (non-solid).
     var ft = { x: Math.floor(fp.x / T), y: Math.floor(fp.y / T) };
     var pt = W.playerTile();
+    var cands = [];
     for (var i = 0; i < W.objects.length; i++) {
       var o = W.objects[i];
       if (!o.visible || !W.isInteractable(o)) continue;
-      if ((o.tx === ft.x && o.ty === ft.y) || (o.tx === pt.x && o.ty === pt.y && !o.solid)) return o;
+      var faced = (o.tx === ft.x && o.ty === ft.y) || (o.tx === ftile.x && o.ty === ftile.y);
+      var under = o.tx === pt.x && o.ty === pt.y && !o.solid;
+      if (faced || under) cands.push({ o: o, score: W.interactPriority(o) * 10 + (faced ? 2 : 0), i: i });
     }
-    return null;
+    if (!cands.length) return null;
+    // highest score wins; ties -> most recently added (later in the list)
+    cands.sort(function (a, b) { return (b.score - a.score) || (b.i - a.i); });
+    return cands[0].o;
+  };
+  /**
+   * Priority when several interactables compete: 3 = the chapter is waiting on it or overrode its
+   * handler (api.waitForInteract / api.onInteract), 2 = chapter-added or patched, 1 = shared base fixture.
+   */
+  W.interactPriority = function (e) {
+    var ov = G.Script.overrides;
+    if ((ov && Object.prototype.hasOwnProperty.call(ov, e.id) && ov[e.id] != null) || W.hasWaiter('interact', e.id) || W.hasWaiter('interacted', e.id)) return 3;
+    return e.def && e.def._shared && !e.def._patched ? 1 : 2;
+  };
+  /** Dev/test aid: warn when two interactable entities share a tile in the loaded room. */
+  W.warnSharedTiles = function () {
+    if (!(G.dev || G.auto) || !W.room) return;
+    var seen = {}, room = W.room.def.id;
+    W.warnedTiles = W.warnedTiles || {};
+    function add(e, tx, ty) {
+      if (!e.visible || !W.isInteractable(e)) return;
+      var k = tx + ',' + ty;
+      (seen[k] = seen[k] || []).push(e.id);
+    }
+    W.objects.forEach(function (o) { add(o, o.tx, o.ty); });
+    W.npcs.forEach(function (n) { var t = W.pxToTile(n.x, n.y); add(n, t.x, t.y); });
+    Object.keys(seen).forEach(function (k) {
+      if (seen[k].length < 2) return;
+      var key = room + '@' + k + ':' + seen[k].join('+');
+      if (W.warnedTiles[key]) return;
+      W.warnedTiles[key] = true;
+      var msg = 'interactables share tile ' + k + ' in ' + room + ': ' + seen[k].join(', ') + ' (E picks: waited-on/overridden > chapter-added/patched > shared fixture; ties = most recent)';
+      G.warn(msg); G.log('[warn] ' + msg);
+    });
   };
   W.isInteractable = function (e) {
     var d = e.def;
