@@ -252,8 +252,11 @@
     up_bed_pink: { solid: true, base: 'up_floor',
       draw: function (g, x, y, info) { px(g, x + 1, y, T - 2, 14, '#e48aaa'); px(g, x + 2, y + 2, 4, 3, '#f0a4c0'); px(g, x + 9, y + 7, 4, 3, '#f0a4c0'); px(g, x + 1, y + 13, T - 2, 1, '#b05a7a'); px(g, x, y + 14, T, 2, '#3a2a30'); }
     },
-    up_bed_single: { solid: true, base: 'up_floor', // contestant single bed (grey DPE linen)
-      draw: function (g, x, y) { px(g, x + 1, y + 1, 14, 14, '#2e2a30'); px(g, x + 2, y + 2, 12, 4, '#d8d4cc'); px(g, x + 2, y + 6, 12, 8, '#5a5e6a'); px(g, x + 2, y + 6, 12, 1, '#727684'); px(g, x + 6, y + 9, 4, 3, '#e8e8ea'); px(g, x + 7, y + 10, 2, 1, '#2a2a2a'); }
+    up_bed_single: { solid: true, base: 'up_floor', // contestant bed body (grey DPE duvet), tiles seamlessly in a 2-wide column
+      draw: function (g, x, y, info) { var L = info.tx % 2 === 1; px(g, x + (L ? 1 : 0), y, L ? 15 : 15, 15, '#5a5e6a'); px(g, x + (L ? 1 : 0), y, 15, 1, '#727684'); px(g, x + (L ? 1 : 0), y + 7, 15, 1, '#4e525e'); if (L) px(g, x + 1, y, 1, 15, '#2e2a30'); else px(g, x + 14, y, 1, 15, '#2e2a30'); px(g, x, y + 15, T, 1, '#1a1418'); }
+    },
+    up_bed_head_grey: { solid: true, base: 'up_floor',
+      draw: function (g, x, y, info) { var L = info.tx % 2 === 1; px(g, x, y, T, 5, '#3a3036'); px(g, x, y, T, 1, '#5a4e56'); px(g, x + (L ? 1 : 0), y + 5, 15, 11, '#5a5e6a'); px(g, x + (L ? 3 : 1), y + 6, 12, 5, '#d8d4cc'); px(g, x + (L ? 1 : 0), y + 13, 15, 1, '#727684'); }
     },
     up_nightstand: { solid: true, base: 'up_floor', draw: function (g, x, y) { px(g, x + 2, y + 4, 12, 11, '#4a3226'); px(g, x + 2, y + 4, 12, 2, '#5e4232'); px(g, x + 7, y + 9, 2, 1, '#c9a24a'); px(g, x + 9, y + 1, 3, 4, '#e8d8a0'); px(g, x + 10, y + 5, 1, 1, '#333'); } },
     up_writing_desk: { solid: true, base: 'up_floor', draw: function (g, x, y) { px(g, x, y + 3, T, 9, '#5a3e2c'); px(g, x, y + 3, T, 2, '#6e4e38'); px(g, x + 1, y + 12, 2, 4, '#3a281c'); px(g, x + 13, y + 12, 2, 4, '#3a281c'); } },
@@ -263,12 +266,13 @@
     },
     up_tub: { solid: true, base: 'up_marble', draw: function (g, x, y) { px(g, x + 1, y + 2, 14, 13, '#f4f2ee'); px(g, x + 3, y + 4, 10, 9, '#a8d0e0'); px(g, x + 3, y + 4, 10, 1, '#c8e4f0'); px(g, x + 7, y + 1, 2, 3, '#c9a24a'); } },
     up_cot_floor: { color: '#34383a', color2: '#2a2e30', pattern: 'tiles' },
+    up_cot_under: { solid: true, color: '#34383a', color2: '#2a2e30', pattern: 'tiles' }, // floor under a 1x2 cot prop
     up_mat: { // "Soak It Up" blood-absorbent mat
       draw: function (g, x, y, info) { px(g, x, y, T, T, '#34383a'); px(g, x + 1, y + 1, 14, 14, '#7a2a30'); px(g, x + 2, y + 2, 12, 12, '#8a3438'); if (info.tx % 2 === 0) { px(g, x + 4, y + 6, 8, 1, '#e8d8c8'); px(g, x + 4, y + 8, 6, 1, '#e8d8c8'); } }
     },
     up_lux_floor: { color: '#4a3a24', color2: '#3a2c1a', pattern: 'checker' },
     up_lux_wall: { solid: true, wall: true, draw: wallFn('#2a2010', '#6a5228', function (g, x, y) { px(g, x + 2, y + 4, 12, 8, '#7a6030'); px(g, x + 3, y + 5, 10, 6, '#8a6c38'); px(g, x + 7, y + 7, 2, 2, '#e8c15a'); }) },
-    up_bed_lux: { solid: true, base: 'up_lux_floor', draw: function (g, x, y) { px(g, x, y, T, T, '#e8dcc0'); px(g, x + 1, y + 1, 14, 14, '#c8a050'); px(g, x + 2, y + 2, 12, 12, '#e8c878'); px(g, x + 3, y + 3, 10, 1, '#f8e8b8'); px(g, x, y + 15, T, 1, '#5a4020'); } },
+    up_bed_lux: { solid: true, base: 'up_lux_floor', draw: function (g, x, y, info) { var L = info.tx % 2 === 1; px(g, x, y, T, T, '#e8c878'); px(g, x, y + 4, T, 1, '#f8e8b8'); if (L) px(g, x, y, 1, T, '#c8a050'); else px(g, x + 15, y, 1, T, '#c8a050'); px(g, x + (L ? 4 : 2), y + 8, 10, 1, '#d8b060'); px(g, x, y + 15, T, 1, '#5a4020'); } },
     up_lux_head: { solid: true, base: 'up_lux_floor', draw: function (g, x, y) { px(g, x, y, T, 6, '#8a6a30'); px(g, x, y, T, 1, '#e8c15a'); px(g, x, y + 6, T, 10, '#f4ecd8'); px(g, x + 2, y + 7, 5, 5, '#fff8ec'); px(g, x + 9, y + 7, 5, 5, '#fff8ec'); } },
     up_screen_seat: { solid: false, base: 'up_carpet', // theatre chair (walkable so NPCs can sit)
       draw: function (g, x, y) { px(g, x + 2, y + 2, 12, 5, '#5a1a24'); px(g, x + 2, y + 2, 12, 1, '#7a2a34'); px(g, x + 3, y + 7, 10, 6, '#6a2030'); px(g, x + 2, y + 13, 1, 2, '#1a1010'); px(g, x + 13, y + 13, 1, 2, '#1a1010'); }
@@ -822,5 +826,211 @@
       pyre.push({ id: 'gas_' + (i + 1), at: p, prop: 'up_gascan', solid: true, examine: [{ think: 'Gasoline. The smell is everywhere.' }] });
     });
     UP.extras.redRoomPyre = pyre;
+  })();
+  /* ======================================================================
+   * F2: contestant rooms (shared 8×8 template, personalised props)
+   *   house_annette_room (1), house_carol_room (2), house_john_room (4), house_kessie_room (5),
+   *   house_delphin_room (6), house_isaiah_room (7)
+   * ------------------------------------------------------------------
+   * North-side rooms (1,5,7) have their door in the SOUTH wall [4,9]; south-side rooms (2,4,6) in the NORTH wall [4,0].
+   * exits: to_bedroom_hall   spawns: from_bedroom_hall (inside the door)
+   * marks: door, bed (standing beside it), bed_lie, desk, center, window_spot (N-side rooms) / wardrobe
+   * fixtures (all rooms): bed, nightstand, desk, wardrobe, ginerva_button, smoke_detector (hidden cam), tablet
+   *          + personal: annette: knitting, teaset | carol: vanity, compact | john: ashtray, sweater_heap
+   *          kessie: gloves, cleaning_kit | delphin: hair_dye, nail_polish | isaiah: book_stack, sneakers, book_open
+   * ================================================================== */
+  var PERSONAL = {
+    annette: { num: 1, side: 'N', name: "Annette's Room", tint: '#5a4a7a', rug: '#6a5a8a', items: [
+      { id: 'knitting', at: [3, 5], prop: 'up_knitting', solid: false, examine: [{ think: 'Lavender wool, half a scarf. The needles are very sharp.' }] },
+      { id: 'teaset', at: [2, 7], prop: 'up_teaset', layer: 1, examine: [{ think: 'A little tea service. She brought her own cups somehow.' }] }] },
+    carol: { num: 2, side: 'S', name: "Carol's Room", tint: '#7a3a5a', rug: '#a04a7a', items: [
+      { id: 'vanity', at: [1, 7], prop: 'up_vanity', examine: [{ think: 'A vanity crowded with pink. Every bottle faces the camera.' }] },
+      { id: 'compact', at: [2, 7], prop: 'up_compact', layer: 1, examine: [{ think: 'Her pink compact. The mirror is cracked.' }] }] },
+    john: { num: 4, side: 'S', name: "John's Room", tint: '#4a4a3a', rug: '#5a5040', items: [
+      { id: 'ashtray', at: [2, 7], prop: 'up_ashtray', layer: 1, examine: [{ think: 'An ashtray. Nobody here is allowed to smoke.' }] },
+      { id: 'sweater_heap', at: [5, 6], prop: 'up_sweater_heap', solid: false, examine: [{ think: 'A beige sweater on the floor, too big for anyone.' }] }] },
+    kessie: { num: 5, side: 'N', name: "Kessie's Room", tint: '#3a5a7a', rug: '#4a6a8a', items: [
+      { id: 'gloves', at: [2, 7], prop: 'up_gloves', layer: 1, examine: [{ think: 'Yellow rubber gloves, folded neat as a flag.' }] },
+      { id: 'cleaning_kit', at: [6, 7], prop: 'up_cleaning', examine: [{ think: 'Spray bottles, rags, bleach. The cleanest room in the House.' }] }] },
+    delphin: { num: 6, side: 'S', name: "Delphin's Room", tint: '#2a4a7a', rug: '#2a5a8a', items: [
+      { id: 'hair_dye', at: [2, 7], prop: 'up_hairdye', layer: 1, examine: [{ think: 'Bright blue dye and neon-green nail polish. Still him.' }] },
+      { id: 'nail_polish', at: [6, 6], prop: 'up_sweater_heap', solid: false, draw: function (g, x, y) { px(g, x + 3, y + 8, 10, 6, '#e87a20'); px(g, x + 5, y + 10, 6, 1, '#1a1a1a'); }, examine: [{ think: 'An orange T-shirt: LET ME OUT.' }] }] },
+    isaiah: { num: 7, side: 'N', name: "Isaiah's Room", tint: '#3a3a5a', rug: '#3a4a6a', items: [
+      { id: 'book_stack', at: [6, 7], prop: 'up_bookstack', examine: [{ think: 'Library books, stacked by size. Books may not be removed from the library.' }] },
+      { id: 'sneakers', at: [3, 6], prop: 'up_sneakers', solid: false, examine: [{ think: 'Red sneakers. "Kegs." Lined up exactly parallel.' }] },
+      { id: 'book_open', at: [2, 7], prop: 'up_book', color: '#8a2a2a', layer: 1, examine: [{ think: 'A hardback, open face down to keep his place.' }] }] }
+  };
+  Object.keys(PERSONAL).forEach(function (who) {
+    var P = PERSONAL[who], ID = 'house_' + who + '_room';
+    var g = grid(10, 10, '#');
+    fill(g, 1, 1, 8, 8, '.');
+    var north = P.side === 'S'; // south-side rooms open to the hall through their NORTH wall
+    var doorAt = north ? [4, 0] : [4, 9], inside = north ? [4, 1] : [4, 8];
+    put(g, doorAt[0], doorAt[1], 'D');
+    // bed: N-side rooms put it NE with a window N; S-side rooms put it SE (window-less, interior)
+    var bedTop = north ? 5 : 1;
+    put(g, 7, bedTop, 'y'); put(g, 7, bedTop + 1, 'b'); put(g, 7, bedTop + 2, 'b');
+    put(g, 8, bedTop, 'y'); put(g, 8, bedTop + 1, 'b'); put(g, 8, bedTop + 2, 'b');
+    put(g, 6, bedTop, 'n');
+    if (!north) { put(g, 4, 0, 'W'); }
+    put(g, 1, north ? 1 : 7, 'w'); put(g, 2, north ? 1 : 7, 'w'); put(g, 2, north ? 2 : 6, 'c');
+    put(g, 1, north ? 7 : 1, 'A');
+    fill(g, 3, 4, 3, 2, 'R');
+    var deskY = north ? 1 : 7;
+    var items = P.items.map(function (it) {
+      var c = G.cloneDef(it);
+      if (north) { // mirror the desk-row items to the north side
+        if (c.at[1] === 7) c.at = [c.at[0], 1]; else if (c.at[1] === 6) c.at = [c.at[0], 3];
+      }
+      return c;
+    });
+    var marks = { door: inside, bed: [6, bedTop + 1], bed_lie: [7, bedTop + 1], desk: [2, north ? 2 : 6], center: [4, 4], wardrobe: [1, north ? 6 : 2] };
+    if (!north) marks.window_spot = [4, 1];
+    reg(ID, {
+      name: P.name,
+      tiles: rows(g),
+      legend: { '#': 'up_wall', '.': 'up_floor', 'W': 'up_window_garden', 'y': 'up_bed_head_grey', 'b': 'up_bed_single', 'n': 'up_nightstand',
+        'w': 'up_writing_desk', 'A': 'up_wardrobe', 'R': { tile: 'up_rug_' + who }, 'D': 'up_door_' + P.num },
+      spawn: inside, spawns: { from_bedroom_hall: inside }, spawnFacing: { from_bedroom_hall: north ? 'down' : 'up' },
+      marks: marks,
+      ambient: 'hum', tint: P.tint, tintAlpha: 0.08, dark: 0.25, bg: '#07050a',
+      lights: [{ at: [6, bedTop], r: 32 }, { at: [2, deskY], r: 36 }],
+      blindSpots: [{ id: 'wardrobe_bs', at: marks.wardrobe, w: 1, h: 1, note: 'in front of the wardrobe (closet)' }],
+      objects: [
+        { id: 'bed', at: [7, bedTop + 1], examine: [{ think: 'Grey DPE linen, made with hospital corners.' }] },
+        { id: 'nightstand', at: [6, bedTop], examine: [{ think: 'A lamp and an empty drawer. Same as mine.' }] },
+        { id: 'desk', at: [1, deskY], examine: [{ think: 'A writing desk and a DPE pen.' }] },
+        { id: 'wardrobe', at: [1, north ? 7 : 1], examine: [{ think: 'Grey sweatsuits, in someone else\'s size.' }] },
+        { id: 'ginerva_button', at: [doorAt[0] + 1, doorAt[1]], prop: 'up_button_green', solid: false, examine: [{ think: 'SUMMON GINERVA.' }] },
+        { id: 'tablet', at: [6, north ? 9 : 0], prop: 'up_tablet', solid: false, examine: [{ think: 'Curated memories for somebody else. It won\'t turn off either.' }] },
+        { id: 'smoke_detector', at: [north ? 2 : 7, north ? 9 : 0], prop: 'up_smoke_eye', solid: false, cam: { angle: north ? 270 : 90, sweep: 0, range: 120, fov: 110 },
+          examine: [{ think: 'The same smoke detector. The same little light.' }] }
+      ].concat(items),
+      exits: [exit(ID, 'house_bedroom_hall', doorAt, { lockedText: [{ think: 'Locked from the outside.' }] })]
+    });
+    var rugTiles = {}; rugTiles['up_rug_' + who] = { draw: (function (c) { return function (g2, x, y) { px(g2, x, y, T, T, shade(c, -0.2)); px(g2, x + 1, y + 1, T - 2, T - 2, c); px(g2, x + 6, y + 6, 4, 4, shade(c, 0.2)); }; })(P.rug) };
+    G.shared.registerTiles(rugTiles);
+  });
+
+  /* ======================================================================
+   * F2: house_luxury_room  (10×8, east end, door in the NORTH wall; NO CAMERAS at all)
+   * ------------------------------------------------------------------
+   * exits: to_bedroom_hall [5,0]   spawns: from_bedroom_hall [5,1] (down)
+   * marks: bed [3,3], bed_lie [2,3], tub [8,6], center [5,4], door [5,1], couch [6,6]
+   * fixtures: lux_bed, lux_tub, lux_flowers, lux_couch, lux_frame, lux_screen_off  (no camera: blind spot = whole room)
+   * ================================================================== */
+  (function () {
+    var ID = 'house_luxury_room';
+    var g = grid(12, 10, 'Z');
+    fill(g, 1, 1, 10, 8, ',');
+    put(g, 5, 0, 'D');
+    put(g, 1, 2, 'y'); put(g, 2, 2, 'y'); put(g, 1, 3, 'b'); put(g, 2, 3, 'b'); put(g, 1, 4, 'b'); put(g, 2, 4, 'b');
+    put(g, 9, 7, 'u'); put(g, 10, 7, 'u');
+    put(g, 6, 7, 'h'); put(g, 7, 7, 'h');
+    fill(g, 4, 3, 3, 3, 'R');
+    reg(ID, {
+      name: 'The Luxury Room',
+      tiles: rows(g),
+      legend: { 'Z': 'up_lux_wall', ',': 'up_lux_floor', 'D': 'up_door_lux', 'y': 'up_lux_head', 'b': 'up_bed_lux', 'u': 'up_tub', 'h': 'couch', 'R': 'rug' },
+      spawn: [5, 1], spawns: { from_bedroom_hall: [5, 1] }, spawnFacing: { from_bedroom_hall: 'down' },
+      marks: { bed: [3, 3], bed_lie: [2, 3], tub: [8, 7], center: [5, 4], door: [5, 1], couch: [6, 6] },
+      noCameras: true,
+      ambient: null, tint: '#c09040', tintAlpha: 0.1, dark: 0.15, bg: '#07050a',
+      lights: [{ at: [5, 4], r: 70 }, { at: [2, 3], r: 36 }],
+      blindSpots: [{ id: 'luxury_bs', at: [1, 1], w: 10, h: 8, note: 'no cameras, the whole room' }],
+      objects: [
+        { id: 'lux_bed', at: [2, 3], examine: [{ think: 'A bed like a cake. For one night, no one is watching me sleep.' }] },
+        { id: 'lux_tub', at: [9, 7], examine: [{ think: 'A real bathtub. Hot water to the brim.' }] },
+        { id: 'lux_couch', at: [6, 7], examine: [{ think: 'Velvet. It smells like money.' }] },
+        { id: 'lux_flowers', at: [9, 1], prop: 'up_flowers_gold', examine: [{ think: 'Lilies. They make everything smell like a funeral.' }] },
+        { id: 'lux_frame', at: [3, 0], prop: 'up_frame', solid: false, examine: [{ think: 'Even here, the Great Leader. But no lens behind him. I checked.' }] },
+        { id: 'lux_screen_off', at: [8, 0], prop: 'up_wallscreen_off', solid: false, examine: [{ think: 'A dark screen. Dark, for once.' }] }
+      ],
+      exits: [exit(ID, 'house_bedroom_hall', [5, 0], { lockedText: [{ think: 'Not yet. One more minute.' }] })]
+    });
+  })();
+
+  /* ======================================================================
+   * F2: house_infirmary  (10×8, west end, door in the SOUTH wall)
+   * ------------------------------------------------------------------
+   * exits: to_bedroom_hall [5,9]   spawns: from_bedroom_hall [5,8] (up)
+   * marks: cot_1..cot_6 (tile beside each cot, where a visitor stands), cot_1_bed..cot_6_bed (the cot itself:
+   *        put a lying NPC there), medic [8,7], desk [8,6], behind_cots [2,1] (blind spot), center [5,5], door [5,8]
+   * fixtures: cot_1..cot_6 (1×2 cots, top row), mat_* tiles, medic_desk, cabinet, cam_infirmary
+   * blind spot: behind_cots_bs (row y=1 behind the cot heads)
+   * ================================================================== */
+  (function () {
+    var ID = 'house_infirmary';
+    var g = grid(12, 10, 'Q');
+    fill(g, 1, 1, 10, 8, ':');
+    put(g, 5, 9, 'D');
+    var cotX = [2, 4, 6, 8, 2, 4], cotY = [2, 2, 2, 2, 5, 5];
+    var objs = [], marks = { medic: [8, 7], desk: [9, 6], behind_cots: [2, 1], center: [6, 5], door: [5, 8] };
+    for (var i = 0; i < 6; i++) {
+      var x = cotX[i], y = cotY[i];
+      put(g, x, y, 'z'); put(g, x, y + 1, 'z');          // solid under the cot
+      put(g, x + 1, y + 1, 'M');                           // Soak It Up mat beside
+      objs.push({ id: 'cot_' + (i + 1), at: [x, y], prop: 'up_cot', solid: true, layer: -1, examine: [{ think: 'A prison cot. Six of them. More cots than there are of us.' }] });
+      marks['cot_' + (i + 1)] = [x + 1, y + 1]; marks['cot_' + (i + 1) + '_bed'] = [x, y + 1];
+    }
+    put(g, 9, 6, 'd'); put(g, 10, 6, 'd'); put(g, 10, 2, 'k'); put(g, 10, 3, 'k');
+    objs.push(
+      { id: 'medic_desk', at: [9, 6], examine: [{ think: "The medic's desk. A clipboard, a scanner, a bowl of lollipops." }] },
+      { id: 'cabinet', at: [10, 2], examine: [{ think: 'Gauze, antiseptic, and a drawer of syringes labelled CHIP.' }] },
+      { id: 'mats_sign', at: [7, 0], prop: 'up_sign', solid: false, label: '+', examine: [{ think: 'The mats say SOAK IT UP. Branded. Of course they are.' }] },
+      cam('cam_infirmary', [8, 0], 110, { sweep: 40, range: 120, fov: 60 })
+    );
+    reg(ID, {
+      name: 'Infirmary',
+      tiles: rows(g),
+      legend: { 'Q': 'whitewall', ':': 'up_cot_floor', 'D': 'up_door_infirmary', 'z': { tile: 'up_cot_under' }, 'M': 'up_mat', 'd': 'up_medic_desk', 'k': 'up_cabinet' },
+      spawn: [5, 8], spawns: { from_bedroom_hall: [5, 8] }, spawnFacing: { from_bedroom_hall: 'up' },
+      marks: marks,
+      ambient: 'hum', tint: '#4a7a8a', tintAlpha: 0.1, dark: 0.2, bg: '#06080a',
+      lights: [{ at: [5, 3], r: 64 }, { at: [9, 6], r: 36 }],
+      blindSpots: [{ id: 'behind_cots_bs', at: [1, 1], w: 9, h: 1, note: 'behind the cot heads' }],
+      objects: objs,
+      exits: [exit(ID, 'house_bedroom_hall', [5, 9], { lockedText: [{ think: 'Not until the medic says so.' }] })]
+    });
+  })();
+
+  /* ======================================================================
+   * F2: house_screening_room  (8×6, door in the SOUTH wall)
+   * ------------------------------------------------------------------
+   * exits: to_bedroom_hall [4,7]   spawns: from_bedroom_hall [4,6] (up)
+   * marks: seat_1..seat_9 (rows of 3: row 1 front y=3, row 3 back y=5... see below), screen [4,1] (stand facing it),
+   *        trader [7,2] (beside the screen, for one-on-ones), door [4,6], face_cam [4,2]
+   * fixtures: wall_screen (2 tiles, x3-4 on the north wall; animated), seat_1..9 (walkable seats), cam_face (in your face), cam_rear
+   * ================================================================== */
+  (function () {
+    var ID = 'house_screening_room';
+    var g = grid(10, 8, '#');
+    fill(g, 1, 1, 8, 6, ',');
+    fill(g, 2, 0, 6, 1, 'E');
+    put(g, 4, 7, 'D');
+    var objs = [], marks = { screen: [4, 1], trader: [8, 2], door: [4, 6], face_cam: [4, 2] }, n = 0;
+    [3, 4, 5].forEach(function (y) {
+      [2, 3, 6].forEach(function (x) {
+        n++; put(g, x, y, 'c');
+        marks['seat_' + n] = [x, y];
+      });
+    });
+    objs.push(
+      { id: 'wall_screen', at: [4, 0], examine: [{ think: 'The screen. They will show it to us again and again, until it is the only thing we remember.' }] },
+      cam('cam_face', [5, 2], 90, { prop: 'up_cam', sweep: 0, range: 64, fov: 80, examine: [{ think: 'A camera on a stalk, a foot from my face. They want my face more than the execution.' }] }),
+      cam('cam_rear', [8, 6], 225, { sweep: 20, range: 120, fov: 60 })
+    );
+    for (var k = 1; k <= 9; k++) objs.push({ id: 'seat_' + k, at: marks['seat_' + k], examine: [{ think: 'A plush red seat, like a cinema. Nobody brought popcorn.' }] });
+    reg(ID, {
+      name: 'Screening Room',
+      tiles: rows(g),
+      legend: { '#': 'up_wall', ',': 'up_carpet', 'E': 'screen', 'c': 'up_screen_seat', 'D': 'up_door_screening' },
+      spawn: [4, 6], spawns: { from_bedroom_hall: [4, 6] }, spawnFacing: { from_bedroom_hall: 'up' },
+      marks: marks,
+      ambient: 'static', tint: '#1a2a4a', tintAlpha: 0.15, dark: 0.55, playerLight: 26, bg: '#040408',
+      lights: [{ at: [4, 1], r: 72, flicker: true }],
+      objects: objs,
+      exits: [exit(ID, 'house_bedroom_hall', [4, 7], { lockedText: [{ think: 'They aren\'t done showing us.' }] })]
+    });
   })();
 })();

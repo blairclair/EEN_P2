@@ -28,9 +28,9 @@
  *   Marks: judge_bench [10,2] (top of the two-storey bench), bench_stairs [7,2], mic [10,7],
  *     defendant_left [8,8], defendant_right [12,8], carpet [10,10], cage [10,13] (the Cage tile; put a
  *     caged NPC here, the bars draw over it), contestant_1..contestant_7 [17,4]..[17,10] (contestants'
- *     bench, facing west), jury_box [3,6], host_floor [10,5], tb_left [7,12], tb_right [13,12],
+ *     bench, facing west), jury_box [6,5] (in front of the box rail), host_floor [10,5], tb_left [7,12], tb_right [13,12],
  *     camera_left [6,12], camera_right [15,12].
- *   Mannequin heads: remove 'jury_7' and add { id:'jury_7', at:[3,7], prop:'gx_mannequin', headless:true }.
+ *   Mannequin heads: remove 'jury_7' and re-add it at the same tile ({ id:'jury_7', at:[...], prop:'gx_mannequin', headless:true }.
  *
  * house_gym_vr (ch04): seven beds in a tight circle round tool_tray [11,9]. objects bed_1..bed_7,
  *   iv_1..iv_7, tool_tray, robocam_1. Marks bed_1..bed_7 (= bed tiles), tray [11,9], trader [11,3],
@@ -60,7 +60,7 @@
  *   at desk_clerk [10,4]), sign [3,2], line_start [10,9].
  * dpe_hq_cells (24x8): exit to_dpe_hq_lobby (west). Spawn from_dpe_hq_lobby [1,5]. Cells along the north;
  *   marks cell_1..cell_6 (inside each cell), cell_luna (the smallest), guard [20,6], corridor [12,6].
- *   Cell doors are bars tiles; objects tv_1.., cam_1...
+ *   Cell fronts are solid bars (no walk-in): put people in a cell by placing them at its mark (goRoom at: / npc at:). Objects tv_1..7, guard_desk, cam_1..3.
  * dpe_hq_studio (22x14, ch09 interview): exit to_dpe_hq_lobby (south). Spawn from_dpe_hq_lobby [11,12].
  *   Marks chair_guest [9,5], chair_host [13,5], table [11,5], plinth [11,2], audience [11,10],
  *   wings [2,6], camera [11,8].
@@ -427,7 +427,7 @@
   (function () {
     var g = gymShell('m');
     g.rect(8, 2, 5, 1, 'j').rect(8, 3, 5, 1, 'J').set(7, 2, 'k').set(13, 2, 'k');
-    g.rect(1, 4, 4, 6, 'z').rect(5, 4, 1, 6, 'y');                 // jury box
+    g.rect(1, 3, 4, 6, 'z').rect(5, 3, 1, 6, 'y');                 // jury box
     g.rect(17, 4, 1, 7, 'p').rect(18, 4, 1, 7, 'q');                // contestants' bench (faces west)
     g.rect(10, 8, 1, 5, 'r');                                       // red carpet: chairs -> Cage
     g.rect(10, 13, 1, 1, 'r');
@@ -443,17 +443,17 @@
       { id: 'robocam_2', at: [15, 12], prop: 'gx_robocam', examine: 'Its lens follows you a half-second late.' }
     ];
     var n = 1;
-    for (var yy = 4; yy <= 9; yy += 2) for (var xx = 1; xx <= 4; xx++) {
+    for (var yy = 3; yy <= 7; yy += 2) for (var xx = 1; xx <= 4; xx++) {
       objs.push({ id: 'jury_' + n, at: [xx, yy + (xx % 2 ? 0 : 1)], prop: 'gx_mannequin', examine: n === 1 ? 'The jury: painted mannequins in clown makeup with painted tears. Twelve of them, and none of them vote.' : 'A mannequin juror. Painted tears. Painted smile.' });
       n++;
     }
     reg('house_gym_courtroom', gymDef('The Carnival of Justice', g, {
       tint: '#3a0f4a', tintAlpha: 0.1, dark: 0.32, playerLight: 56,
-      lights: [{ at: [10, 2], r: 64 }, { at: [10, 8], r: 72 }, { at: [10, 13], r: 44, flicker: true }, { at: [17, 7], r: 56 }, { at: [3, 6], r: 44 }, { at: [10, 16], r: 90 }, { at: [21, 8], r: 60 }, { at: [1, 9], r: 40 }],
+      lights: [{ at: [10, 2], r: 64 }, { at: [10, 8], r: 72 }, { at: [10, 13], r: 44, flicker: true }, { at: [17, 7], r: 56 }, { at: [3, 5], r: 44 }, { at: [10, 16], r: 90 }, { at: [21, 8], r: 60 }, { at: [1, 9], r: 40 }],
       objects: objs,
       marks: { judge_bench: [10, 2], bench_stairs: [7, 2], mic: [10, 7], defendant_left: [8, 8], defendant_right: [12, 8], carpet: [10, 10], cage: [10, 13],
         contestant_1: [17, 4], contestant_2: [17, 5], contestant_3: [17, 6], contestant_4: [17, 7], contestant_5: [17, 8], contestant_6: [17, 9], contestant_7: [17, 10],
-        jury_box: [3, 6], host_floor: [10, 5], tb_left: [7, 12], tb_right: [13, 12], camera_left: [6, 12], camera_right: [15, 12] }
+        jury_box: [6, 5], host_floor: [10, 5], tb_left: [7, 12], tb_right: [13, 12], camera_left: [6, 12], camera_right: [15, 12] }
     }));
   })();
 
