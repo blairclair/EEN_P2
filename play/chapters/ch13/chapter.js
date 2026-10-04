@@ -218,9 +218,7 @@
     var LM = function (n, fb) { return mark(H.library, n, fb); };
     var ic = LM('isaiah_chair', [7, 6]);
     maps[H.library] = room(H.library, {
-      npcs: [{ id: 'isaiah_lib', at: [ic[0], ic[1] + 1], spec: 'isaiah', facing: 'left', turn: false }],
-      objects: [{ id: 'ch13_scroll', at: [ic[0] - 1, ic[1] + 2], prop: 'scroll', solid: false, if: 'ch13_scrollOut',
-        examine: [{ think: 'The scroll is not blank any more. Two plans, side by side, in Isaiah\'s tiny handwriting.' }] }]
+      npcs: [{ id: 'isaiah_lib', at: [ic[0], ic[1] + 1], spec: 'isaiah', facing: 'left', turn: false }]
     });
 
     /* --- Red Hall: Trader mopping in the afternoon --- */
@@ -831,6 +829,9 @@
     ], { prompt: 'Plan A, scribbled on the scroll:' });
     api.set('ch13_plan', ['talk', 'tea', 'win'][plan]);
     api.set('ch13_scrollOut', true);
+    var ic2 = mark(H.library, 'isaiah_chair', [7, 6]);
+    api.addObject({ id: 'ch13_scroll', at: [ic2[0] - 1, ic2[1] + 2], prop: 'scroll', solid: false,
+      examine: [{ think: 'The scroll is not blank any more. Two plans, side by side, in Isaiah\'s tiny handwriting.' }] });
     await api.narrate('They talk strategy for hours. Some plans feel close enough to grab out of the air. Some feel as far-fetched as a pond in the desert. It helps, just to stay busy.');
     await api.say('isaiah', 'Will you come visit me in prison if I lose?');
     await api.say('luna', 'Of course. But only if you promise to do the same.');
