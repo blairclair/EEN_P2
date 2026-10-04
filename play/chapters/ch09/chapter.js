@@ -541,6 +541,12 @@
   /* =====================================================================
    * helpers used in start()
    * ===================================================================== */
+  /** Bars on the tile below Luna's cell: the shared cells have a WALKABLE door there (gx_celldoor). */
+  function lockCell(api) {
+    if (here('ch09_bars')) return;
+    var c = M('dpe_hq_cells', 'luna_cell');
+    api.addObject({ id: 'ch09_bars', at: [c[0], c[1] + 1], draw: drawBars, solid: true, examine: 'Bars, close enough together that you could not get a wrist between them.' });
+  }
   function clamp(v) { return Math.max(0, Math.min(100, Math.round(v))); }
   function meter(api, k, def, d) { var v = clamp(api.get(k, def) + d); api.set(k, v); return v; }
   function bond(api, d) { return meter(api, 'm_waverly', 60, d); }
@@ -754,7 +760,7 @@
       await api.fadeOut(250);
       api.teleport(M('dpe_hq_cells', 'luna_cell'), 'down');
       await api.fadeIn(250);
-      if (!USING[MAP.cells]) api.addObject({ id: 'ch09_bars', at: [22, 3], draw: drawBars, solid: true, examine: 'Bars, close enough together that you could not get a wrist between them.' });
+      lockCell(api);
       api.sound('door');
       await api.narrate('Half the size of the others. No bench, no blanket, not even a toilet. Just a little television mounted in the top corner, perched next to a camera.');
       api.unlockPlayer();
@@ -1072,7 +1078,7 @@
 
       /* =================== 5. NOTE 1 IN THE CELL =================== */
       await api.goRoom(MAP.cells, { at: M('dpe_hq_cells', 'luna_cell'), facing: 'down' });
-      if (!USING[MAP.cells] && !here('ch09_bars')) api.addObject({ id: 'ch09_bars', at: [22, 3], draw: drawBars, solid: true, examine: 'Bars.' });
+      lockCell(api);
       await api.narrate('Back in the cell. I sit with my back to the camera and my sleeve in my lap, shaking from the effort of not crying.');
       await api.note({ title: 'folded paper, in pencil', text: 'I want to help! Creepy Trader keeps calling me. I think he likes me. I can use that to help you escape.' });
       api.set('f_note1_read', true);
